@@ -8,6 +8,7 @@ using ExtendedWhips.Hooks;
 using ExtendedWhips.Tuning;
 using ExtendedWhips.Spawning;
 using ExtendedWhips.Models;
+using ExtendedWhips.Effects;
 
 namespace ExtendedWhips.UI
 {
@@ -193,7 +194,7 @@ namespace ExtendedWhips.UI
             if (v == null) return;
 
             float width = 320f;
-            float height = 200f;
+            float height = 225f;
             float x = Screen.width - width - 20f;
             float y = 20f;
 
@@ -278,6 +279,17 @@ namespace ExtendedWhips.UI
                 string barColor = rpmRatio > 0.85f ? "#FF3333" : rpmRatio > 0.65f ? "#FFAA00" : "#00FF88";
                 string bar = new string('=', filledBars) + new string('.', totalBars - filledBars);
                 GUILayout.Label($"<b>RPM:</b> {rpm:F0} / {maxRpm:F0} <color={barColor}>[{bar}]</color>");
+
+                // Nitrous Bottle Gauge
+                float nosPsi = CustomVehicleNitrous.BottlePsi;
+                float nosRatio = Mathf.Clamp01(nosPsi / CustomVehicleNitrous.MaxPsi);
+                int nosBars = 10;
+                int filledNos = Mathf.RoundToInt(nosRatio * nosBars);
+                string nosBarStr = new string('=', filledNos) + new string('.', nosBars - filledNos);
+                string nosStatus = CustomVehicleNitrous.IsBoosting ? "<color=#00E5FF><b>BOOST ACTIVE!</b></color>" :
+                                   CustomVehicleNitrous.IsPurging ? "<color=#FFFFFF><b>PURGING CO2</b></color>" :
+                                   nosPsi > 100f ? "<color=#00FF88>ARMED [LShift]</color>" : "<color=#FF3333>EMPTY</color>";
+                GUILayout.Label($"<b>NOS:</b> {nosPsi:F0} PSI <color=#00E5FF>[{nosBarStr}]</color> {nosStatus}");
 
                 // Torque & Steer
                 float torque = v.engine != null ? v.engine.peakRpmTorque : 0f;
@@ -783,6 +795,35 @@ namespace ExtendedWhips.UI
 
             int wheelCount = stock?.Wheels.Count ?? 0;
             GUILayout.Label($"<b>Wheels Detected:</b> {wheelCount} active wheel collider units");
+
+            GUILayout.Space(10);
+            GUILayout.Box("<b><color=#00E5FF>Forza Drag & Acceleration Benchmark Stopwatch</color></b>", GUILayout.ExpandWidth(true));
+            
+            string stateBadge = DragTelemetryBenchmark.State switch
+            {
+                DragBenchmarkState.Armed => "<color=#00FF88>[ARMED: LAUNCH WHEN READY]</color>",
+                DragBenchmarkState.Running => "<color=#FFD700>[RUNNING: TIMING RUN...]</color>",
+                DragBenchmarkState.Completed => "<color=#00E5FF>[RUN COMPLETE]</color>",
+                _ => "<color=#888888>[STOP VEHICLE TO ARM]</color>"
+            };
+            GUILayout.Label($"<b>Status:</b> {stateBadge} | Live Time: <b>{DragTelemetryBenchmark.CurrentRunTime:F2}s</b> | Distance: <b>{DragTelemetryBenchmark.CurrentDistanceMeters:F1} m</b>");
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Box($"<b>0-60 mph</b>\n<size=16><color=#00E5FF>{(DragTelemetryBenchmark.Last0to60Mph > 0 ? $"{DragTelemetryBenchmark.Last0to60Mph:F2}s" : "--")}</color></size>\n<size=10>Best: {(DragTelemetryBenchmark.Best0to60Mph < 50 ? $"{DragTelemetryBenchmark.Best0to60Mph:F2}s" : "--")}</size>", GUILayout.Width(130), GUILayout.Height(55));
+            GUILayout.Box($"<b>0-100 mph</b>\n<size=16><color=#00E5FF>{(DragTelemetryBenchmark.Last0to100Mph > 0 ? $"{DragTelemetryBenchmark.Last0to100Mph:F2}s" : "--")}</color></size>\n<size=10>Best: {(DragTelemetryBenchmark.Best0to100Mph < 50 ? $"{DragTelemetryBenchmark.Best0to100Mph:F2}s" : "--")}</size>", GUILayout.Width(130), GUILayout.Height(55));
+            GUILayout.Box($"<b>1/4 Mile ET</b>\n<size=16><color=#FFD700>{(DragTelemetryBenchmark.LastQuarterMileTime > 0 ? $"{DragTelemetryBenchmark.LastQuarterMileTime:F2}s" : "--")}</color></size>\n<size=10>Trap: {DragTelemetryBenchmark.LastQuarterMileTrapSpeedKmh:F0} km/h</size>", GUILayout.Width(150), GUILayout.Height(55));
+            GUILayout.Box($"<b>60-0 Braking</b>\n<size=16><color=#FF5555>{(DragTelemetryBenchmark.Last60to0BrakingDistance > 0 ? $"{DragTelemetryBenchmark.Last60to0BrakingDistance:F1}m" : "--")}</color></size>\n<size=10>Emergency Stop</size>", GUILayout.Width(130), GUILayout.Height(55));
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"<b>Peak Lateral G:</b> <color=#00E5FF>{DragTelemetryBenchmark.PeakLateralG:F2} G</color> | <b>Peak Launch G:</b> <color=#FF8800>{DragTelemetryBenchmark.PeakLongitudinalG:F2} G</color>");
+            GUILayout.FlexibleSpace();
+            GUI.backgroundColor = new Color(0.4f, 0.4f, 0.45f);
+            if (GUILayout.Button("[Reset Records]", GUILayout.Width(110), GUILayout.Height(22)))
+            {
+                DragTelemetryBenchmark.ResetBests();
+            }
+            GUILayout.EndHorizontal();
         }
 
         // ==========================================
@@ -813,6 +854,189 @@ namespace ExtendedWhips.UI
             GUILayout.EndHorizontal();
 
             GUILayout.Space(6);
+
+            if (activeSkin != null && v != null)
+            {
+                var skinState = VehicleReskinManager.GetState(v);
+
+                // --- SHOWROOM & INSPECTION CONTROLS ---
+                GUILayout.Box("<b><color=#00E5FF>1. Interactive Showroom & Inspection Mode</color></b>", GUILayout.ExpandWidth(true));
+                GUILayout.BeginHorizontal();
+                GUI.backgroundColor = (skinState != null && skinState.IsHoodOpen) ? new Color(0.2f, 0.8f, 0.4f) : new Color(0.25f, 0.30f, 0.38f);
+                if (GUILayout.Button(skinState != null && skinState.IsHoodOpen ? "[HOOD: OPEN]" : "[POP HOOD]", GUILayout.Height(28)))
+                {
+                    VehicleReskinManager.ToggleHood(v);
+                }
+
+                GUI.backgroundColor = (skinState != null && skinState.AreDoorsOpen) ? new Color(0.2f, 0.8f, 0.4f) : new Color(0.25f, 0.30f, 0.38f);
+                if (GUILayout.Button(skinState != null && skinState.AreDoorsOpen ? "[DOORS: OPEN]" : "[OPEN DOORS]", GUILayout.Height(28)))
+                {
+                    VehicleReskinManager.ToggleDoors(v);
+                }
+
+                GUI.backgroundColor = (skinState != null && skinState.IsTrunkOpen) ? new Color(0.2f, 0.8f, 0.4f) : new Color(0.25f, 0.30f, 0.38f);
+                if (GUILayout.Button(skinState != null && skinState.IsTrunkOpen ? "[TRUNK: OPEN]" : "[OPEN TRUNK]", GUILayout.Height(28)))
+                {
+                    VehicleReskinManager.ToggleTrunk(v);
+                }
+
+                GUI.backgroundColor = new Color(0.6f, 0.2f, 0.2f);
+                if (GUILayout.Button("[CLOSE ALL]", GUILayout.Height(28)))
+                {
+                    VehicleReskinManager.CloseAllPanels(v);
+                }
+                GUILayout.EndHorizontal();
+                GUILayout.Space(6);
+
+                // --- IN-GAME PAINT & CUSTOMIZATION STUDIO ---
+                GUILayout.Box("<b><color=#00E5FF>2. In-Game Paint & Customization Studio</color></b>", GUILayout.ExpandWidth(true));
+                GUILayout.Label("<b>Iconic Factory OEM Colors:</b>");
+                
+                // Color Palette Row 1
+                GUILayout.BeginHorizontal();
+                DrawColorButton(v, "Bayside Blue", new Color(0.08f, 0.25f, 0.85f), 0.85f, 0.95f, false);
+                DrawColorButton(v, "Mid. Purple II", new Color(0.24f, 0.08f, 0.35f), 0.90f, 0.95f, false);
+                DrawColorButton(v, "Mil. Jade", new Color(0.42f, 0.49f, 0.43f), 0.85f, 0.92f, false);
+                DrawColorButton(v, "Tor-Red", new Color(0.95f, 0.28f, 0.05f), 0.80f, 0.92f, false);
+                DrawColorButton(v, "Plum Crazy", new Color(0.40f, 0.08f, 0.58f), 0.85f, 0.92f, false);
+                DrawColorButton(v, "Sublime Green", new Color(0.35f, 0.78f, 0.10f), 0.80f, 0.90f, false);
+                GUILayout.EndHorizontal();
+
+                // Color Palette Row 2
+                GUILayout.BeginHorizontal();
+                DrawColorButton(v, "Alpine White", new Color(0.96f, 0.96f, 0.98f), 0.80f, 0.95f, false);
+                DrawColorButton(v, "Isle of Man", new Color(0.08f, 0.38f, 0.22f), 0.90f, 0.95f, false);
+                DrawColorButton(v, "Marina Bay", new Color(0.10f, 0.30f, 0.75f), 0.90f, 0.95f, false);
+                DrawColorButton(v, "Code Orange", new Color(0.95f, 0.35f, 0.04f), 0.85f, 0.92f, false);
+                DrawColorButton(v, "Avalanche Grey", new Color(0.68f, 0.70f, 0.72f), 0.75f, 0.88f, false);
+                DrawColorButton(v, "Velocity Blue", new Color(0.12f, 0.38f, 0.82f), 0.88f, 0.92f, false);
+                GUILayout.EndHorizontal();
+
+                GUILayout.Space(4);
+                // Finish Options
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("<b>Finish:</b>", GUILayout.Width(55));
+                GUI.backgroundColor = new Color(0.25f, 0.30f, 0.38f);
+                if (GUILayout.Button("Factory Gloss", GUILayout.Height(22)))
+                {
+                    Color cur = skinState?.CurrentPaintColor ?? Color.white;
+                    VehicleReskinManager.ApplyPaint(v, cur, 0.85f, 0.95f, false);
+                }
+                if (GUILayout.Button("Matte / Satin", GUILayout.Height(22)))
+                {
+                    Color cur = skinState?.CurrentPaintColor ?? Color.white;
+                    VehicleReskinManager.ApplyPaint(v, cur, 0.20f, 0.40f, false);
+                }
+                if (GUILayout.Button("Metallic Flake", GUILayout.Height(22)))
+                {
+                    Color cur = skinState?.CurrentPaintColor ?? Color.white;
+                    VehicleReskinManager.ApplyPaint(v, cur, 0.98f, 0.90f, false);
+                }
+                if (GUILayout.Button("Carbon Fiber", GUILayout.Height(22)))
+                {
+                    VehicleReskinManager.ApplyPaint(v, new Color(0.12f, 0.12f, 0.12f), 0.45f, 0.78f, true);
+                }
+                GUILayout.EndHorizontal();
+
+                // Window Tint Slider
+                GUILayout.Space(4);
+                GUILayout.BeginHorizontal();
+                float currentTint = skinState?.WindowTint ?? 0.35f;
+                GUILayout.Label($"<b>Window Tint:</b> <color=#00E5FF>{currentTint * 100f:F0}%</color>", GUILayout.Width(170));
+                float newTint = GUILayout.HorizontalSlider(currentTint, 0.05f, 0.95f);
+                if (Mathf.Abs(newTint - currentTint) > 0.02f)
+                {
+                    VehicleReskinManager.ApplyWindowTint(v, newTint);
+                }
+                GUILayout.EndHorizontal();
+
+                // Wheel Rim Finishes
+                GUILayout.Space(4);
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("<b>Wheels:</b>", GUILayout.Width(55));
+                GUI.backgroundColor = new Color(0.25f, 0.30f, 0.38f);
+                if (GUILayout.Button("Chrome Mirror", GUILayout.Height(22)))
+                {
+                    VehicleReskinManager.ApplyWheelFinish(v, new Color(0.96f, 0.96f, 0.98f), 0.98f, 0.98f);
+                }
+                if (GUILayout.Button("Satin Bronze", GUILayout.Height(22)))
+                {
+                    VehicleReskinManager.ApplyWheelFinish(v, new Color(0.65f, 0.45f, 0.25f), 0.85f, 0.65f);
+                }
+                if (GUILayout.Button("Gloss Black", GUILayout.Height(22)))
+                {
+                    VehicleReskinManager.ApplyWheelFinish(v, new Color(0.08f, 0.08f, 0.08f), 0.70f, 0.95f);
+                }
+                if (GUILayout.Button("Gunmetal Silver", GUILayout.Height(22)))
+                {
+                    VehicleReskinManager.ApplyWheelFinish(v, new Color(0.42f, 0.44f, 0.46f), 0.90f, 0.85f);
+                }
+                GUILayout.EndHorizontal();
+                GUILayout.Space(6);
+
+                // --- ICONIC LIVERIES & DECAL PRESETS ---
+                GUILayout.Label("<b>Iconic Liveries & Decal Specs:</b>");
+                GUILayout.BeginHorizontal();
+                GUI.backgroundColor = new Color(0.20f, 0.35f, 0.50f);
+                if (GUILayout.Button("F&F R34 Spec", GUILayout.Height(22)))
+                {
+                    VehicleReskinManager.ApplyLivery(v, "R34_FastFurious");
+                }
+                if (GUILayout.Button("HEMI Billboard", GUILayout.Height(22)))
+                {
+                    VehicleReskinManager.ApplyLivery(v, "Cuda_HemiBillboard");
+                }
+                if (GUILayout.Button("M Motorsport", GUILayout.Height(22)))
+                {
+                    VehicleReskinManager.ApplyLivery(v, "BMW_Motorsport");
+                }
+                if (GUILayout.Button("Fox Baja Trophy", GUILayout.Height(22)))
+                {
+                    VehicleReskinManager.ApplyLivery(v, "Raptor_FoxBaja");
+                }
+                if (GUILayout.Button("Clean Stock", GUILayout.Height(22)))
+                {
+                    VehicleReskinManager.ApplyLivery(v, "Clean_OEM");
+                }
+                GUILayout.EndHorizontal();
+                GUILayout.Space(6);
+
+                // --- AIR RIDE & STANCE HYDRAULICS ---
+                GUILayout.Label("<b>Air Ride / Stance Hydraulics:</b>");
+                GUILayout.BeginHorizontal();
+                GUI.backgroundColor = new Color(0.20f, 0.45f, 0.60f);
+                if (GUILayout.Button("[SLAMMED / STANCE]", GUILayout.Height(24)))
+                {
+                    VehicleReskinManager.SetAirRideStance(v, VehicleReskinManager.AirRideStance.Slammed);
+                }
+                if (GUILayout.Button("[STREET / TRACK]", GUILayout.Height(24)))
+                {
+                    VehicleReskinManager.SetAirRideStance(v, VehicleReskinManager.AirRideStance.Street);
+                }
+                if (GUILayout.Button("[OVERLAND / LIFTED]", GUILayout.Height(24)))
+                {
+                    VehicleReskinManager.SetAirRideStance(v, VehicleReskinManager.AirRideStance.Lifted);
+                }
+                GUILayout.EndHorizontal();
+                GUILayout.Space(6);
+
+                // --- WORKHORSE TOWING & WASH SERVICE ---
+                GUILayout.BeginHorizontal();
+                GUI.backgroundColor = new Color(0.85f, 0.50f, 0.10f);
+                if (GUILayout.Button("[ENGAGE HEAVY TOW MODE]", GUILayout.Height(26)))
+                {
+                    VehicleReskinManager.SetTowMode(v, true);
+                }
+                GUI.backgroundColor = new Color(0.15f, 0.65f, 0.85f);
+                if (GUILayout.Button("[PRESSURE WASH & DETAIL]", GUILayout.Height(26)))
+                {
+                    VehicleReskinManager.WashActiveVehicle(v);
+                }
+                GUILayout.EndHorizontal();
+                GUILayout.Space(8);
+            }
+
+            GUILayout.Box("<b><color=#00E5FF>3. Vehicle Body Swap Gallery</color></b>", GUILayout.ExpandWidth(true));
             GUILayout.Label("<size=11><color=#888888>Select any vehicle below to swap the current vehicle's body and wheels in real-time. Full Forza tuning applies to all models.</color></size>");
             GUILayout.Space(8);
 
@@ -926,6 +1150,15 @@ namespace ExtendedWhips.UI
                 return newVal;
             }
             return val;
+        }
+
+        private static void DrawColorButton(VPVehicleController v, string name, Color color, float metallic, float smoothness, bool isCarbon)
+        {
+            GUI.backgroundColor = color;
+            if (GUILayout.Button(name, GUILayout.Height(24)))
+            {
+                VehicleReskinManager.ApplyPaint(v, color, metallic, smoothness, isCarbon);
+            }
         }
     }
 }

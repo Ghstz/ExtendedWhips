@@ -126,6 +126,9 @@ namespace ExtendedWhips.Hooks
             // Continuously enforce tuned parameters if active
             ApplyTuningToInstance(__instance);
 
+            // Animate wheel spin & steering for active custom vehicle body swap
+            VehicleReskinManager.UpdateWheels(__instance);
+
             // Handle In-Game Keybinds during vehicle update
             HandleInput(__instance);
         }
