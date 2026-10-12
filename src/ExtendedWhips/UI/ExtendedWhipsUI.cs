@@ -15,6 +15,11 @@ namespace ExtendedWhips.UI
 
         public static bool Prefix(DemoGUIMessage __instance)
         {
+            if (__instance == null || __instance.gameObject == null || __instance.gameObject.name != "ExtendedWhips_GUIHost")
+            {
+                return true; // Let original game DemoGUIMessage run normally
+            }
+
             if (_loggedPumps++ < 3)
             {
                 Plugin.LogMsg($"[ExtendedWhips] IMGUI host OnGUI active (Frame={Time.frameCount}, Event={Event.current?.type})");
@@ -34,20 +39,22 @@ namespace ExtendedWhips.UI
 
     public static class ExtendedWhipsUI
     {
-        private static int _lastDrawnFrame = -1;
-        private static EventType _lastDrawnEventType = EventType.Ignore;
-
         // UI State
         public static bool IsMenuOpen { get; private set; } = false;
         public static bool IsHudVisible { get; set; } = true;
 
-        private static Rect _menuRect = new Rect(80, 80, 560, 580);
-        private static int _selectedTab = 0;
-        private static readonly string[] _tabNames = { "[PRESETS]", "[ENGINE]", "[HANDLING]", "[TELEMETRY]", "[WHIPS]" };
+        private static bool _pendingMenuToggle = false;
+        private static bool _pendingMenuClose = false;
+        private static bool _pendingHudToggle = false;
+        private static int _pendingTab = -1;
 
-        // Draggable window state
-        private static bool _isDragging = false;
-        private static Vector2 _dragOffset = Vector2.zero;
+        private static bool _hudActiveThisFrame = false;
+        private static bool _toastActiveThisFrame = false;
+
+        private static Rect _menuRect = new Rect(60, 60, 560, 520);
+        private static int _selectedTab = 0;
+        private static Vector2 _scrollPosition = Vector2.zero;
+        private static readonly string[] _tabNames = { "[PRESETS]", "[ENGINE]", "[HANDLING]", "[TELEMETRY]", "[WHIPS]" };
 
         // Toast notification state
         private static string _toastTitle = "";
@@ -61,43 +68,86 @@ namespace ExtendedWhips.UI
             _toastExpireTime = Time.time + duration;
         }
 
-        public static void ToggleMenu()
+        public static void RequestToggleMenu()
         {
-            IsMenuOpen = !IsMenuOpen;
-            Plugin.LogMsg($"[ExtendedWhips] ToggleMenu called: IsMenuOpen = {IsMenuOpen}");
-            try
-            {
-                Cursor.visible = IsMenuOpen;
-                Cursor.lockState = IsMenuOpen ? CursorLockMode.None : CursorLockMode.Locked;
-            }
-            catch (Exception ex)
-            {
-                Plugin.LogMsg($"[ExtendedWhips] Cursor state note: {ex.Message}");
-            }
+            _pendingMenuToggle = true;
         }
 
-        public static void ToggleHud()
+        public static void RequestCloseMenu()
         {
-            IsHudVisible = !IsHudVisible;
-            ShowToast("HUD DISPLAY", IsHudVisible ? "Live Telemetry Overlay: ON" : "Live Telemetry Overlay: OFF", 2.0f);
+            _pendingMenuClose = true;
         }
+
+        public static void RequestToggleHud()
+        {
+            _pendingHudToggle = true;
+        }
+
+        public static void RequestTab(int tabIndex)
+        {
+            _pendingTab = tabIndex;
+        }
+
+        public static void ToggleMenu() => RequestToggleMenu();
+        public static void ToggleHud() => RequestToggleHud();
 
         public static void OnRenderGUI()
         {
             if (Event.current == null) return;
 
-            // Deduplicate multiple calls per frame for the same event type pass
-            if (Time.frameCount == _lastDrawnFrame && Event.current.type == _lastDrawnEventType)
+            // Synchronize state transitions exclusively at the start of Layout passes
+            // This guarantees 100% identical control hierarchy between Layout and Repaint passes.
+            if (Event.current.type == EventType.Layout)
             {
-                return;
+                if (_pendingMenuToggle)
+                {
+                    IsMenuOpen = !IsMenuOpen;
+                    _pendingMenuToggle = false;
+                    try
+                    {
+                        Cursor.visible = IsMenuOpen;
+                        Cursor.lockState = IsMenuOpen ? CursorLockMode.None : CursorLockMode.Locked;
+                    }
+                    catch (Exception ex)
+                    {
+                        Plugin.LogMsg($"[ExtendedWhips] Cursor state note: {ex.Message}");
+                    }
+                    Plugin.LogMsg($"[ExtendedWhips] Menu toggled on Layout pass: IsMenuOpen = {IsMenuOpen}");
+                }
+                else if (_pendingMenuClose)
+                {
+                    IsMenuOpen = false;
+                    _pendingMenuClose = false;
+                    try
+                    {
+                        Cursor.visible = false;
+                        Cursor.lockState = CursorLockMode.Locked;
+                    }
+                    catch { }
+                    Plugin.LogMsg("[ExtendedWhips] Menu closed on Layout pass");
+                }
+
+                if (_pendingHudToggle)
+                {
+                    IsHudVisible = !IsHudVisible;
+                    _pendingHudToggle = false;
+                    ShowToast("HUD DISPLAY", IsHudVisible ? "Live Telemetry Overlay: ON" : "Live Telemetry Overlay: OFF", 2.0f);
+                }
+
+                if (_pendingTab >= 0)
+                {
+                    _selectedTab = _pendingTab;
+                    _pendingTab = -1;
+                }
+
+                _hudActiveThisFrame = IsHudVisible && (VehicleTunerHook.CurrentVehicle != null);
+                _toastActiveThisFrame = (Time.time <= _toastExpireTime && !string.IsNullOrEmpty(_toastTitle));
             }
-            _lastDrawnFrame = Time.frameCount;
-            _lastDrawnEventType = Event.current.type;
 
             // Escape closes menu
             if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Escape && IsMenuOpen)
             {
-                ToggleMenu();
+                RequestCloseMenu();
                 Event.current.Use();
                 return;
             }
@@ -141,7 +191,7 @@ namespace ExtendedWhips.UI
         // ==========================================
         private static void DrawToast()
         {
-            if (Time.time > _toastExpireTime || string.IsNullOrEmpty(_toastTitle)) return;
+            if (!_toastActiveThisFrame) return;
 
             float width = 480f;
             float height = 65f;
@@ -156,9 +206,15 @@ namespace ExtendedWhips.UI
             GUI.Box(new Rect(x, y, 5, height), "");
 
             GUILayout.BeginArea(new Rect(x + 15, y + 8, width - 25, height - 16));
-            GUILayout.Label($"<b><size=14><color=#00E5FF>>> {_toastTitle}</color></size></b>");
-            GUILayout.Label($"<size=12><color=#F0F0F0>{_toastMessage}</color></size>");
-            GUILayout.EndArea();
+            try
+            {
+                GUILayout.Label($"<b><size=14><color=#00E5FF>>> {_toastTitle}</color></size></b>");
+                GUILayout.Label($"<size=12><color=#F0F0F0>{_toastMessage}</color></size>");
+            }
+            finally
+            {
+                GUILayout.EndArea();
+            }
         }
 
         // ==========================================
@@ -166,7 +222,7 @@ namespace ExtendedWhips.UI
         // ==========================================
         private static void DrawHud()
         {
-            if (!IsHudVisible) return;
+            if (!_hudActiveThisFrame) return;
             var v = VehicleTunerHook.CurrentVehicle;
             if (v == null) return;
 
@@ -183,82 +239,86 @@ namespace ExtendedWhips.UI
             GUI.Box(new Rect(x, y, width, 3), "");
 
             GUILayout.BeginArea(new Rect(x + 12, y + 8, width - 24, height - 16));
-
-            // Header Row: Vehicle name & Config button
-            GUILayout.BeginHorizontal();
-            string vehName = v.transform.root != null ? v.transform.root.name : v.gameObject.name;
-            if (vehName.Length > 15) vehName = vehName.Substring(0, 15) + "...";
-            GUILayout.Label($"<b><color=#00E5FF>WHIPS</color> // <color=#FFD700>{vehName}</color></b>");
-            GUILayout.FlexibleSpace();
-
-            GUI.backgroundColor = IsMenuOpen ? new Color(1.0f, 0.3f, 0.3f, 1.0f) : new Color(0.0f, 0.6f, 0.9f, 1.0f);
-            if (GUILayout.Button(IsMenuOpen ? "[Close]" : "[Menu F4]", GUILayout.Width(75), GUILayout.Height(22)))
-            {
-                ToggleMenu();
-            }
-            GUILayout.EndHorizontal();
-
-            GUILayout.Space(2);
-
-            // Mode Badge
-            string presetColor = VehicleTunerHook.CurrentPreset switch
-            {
-                TuningPreset.Stock => "#AAAAAA",
-                TuningPreset.StreetPerformance => "#00FF88",
-                TuningPreset.OffroadLifted => "#FFAA00",
-                TuningPreset.DriftSpec => "#00E5FF",
-                TuningPreset.HyperInsane => "#FF00FF",
-                _ => "#FFFF00"
-            };
-            string presetName = VehicleTunerHook.CurrentPreset switch
-            {
-                TuningPreset.Stock => "FACTORY STOCK",
-                TuningPreset.StreetPerformance => "STREET PERFORMANCE",
-                TuningPreset.OffroadLifted => "OFFROAD HAULER",
-                TuningPreset.DriftSpec => "DRIFT SPEC",
-                TuningPreset.HyperInsane => "HYPER OVERKILL",
-                _ => "CUSTOM TUNED"
-            };
-            GUILayout.Label($"<b>Mode: <color={presetColor}>[{presetName}]</color></b>");
-
-            // Speed & Gear
-            float speedKmh = Mathf.Abs(v.speed * 3.6f);
-            float speedMph = Mathf.Abs(v.speed * 2.23694f);
-            int gear = 0;
-            float rpm = 0f;
             try
             {
-                if (v.data != null)
+                // Header Row: Vehicle name & Config button
+                GUILayout.BeginHorizontal();
+                string vehName = v.transform.root != null ? v.transform.root.name : v.gameObject.name;
+                if (vehName.Length > 15) vehName = vehName.Substring(0, 15) + "...";
+                GUILayout.Label($"<b><color=#00E5FF>WHIPS</color> // <color=#FFD700>{vehName}</color></b>");
+                GUILayout.FlexibleSpace();
+
+                GUI.backgroundColor = IsMenuOpen ? new Color(1.0f, 0.3f, 0.3f, 1.0f) : new Color(0.0f, 0.6f, 0.9f, 1.0f);
+                if (GUILayout.Button(IsMenuOpen ? "[Close]" : "[Menu F4]", GUILayout.Width(75), GUILayout.Height(22)))
                 {
-                    rpm = v.data.Get(VehiclePhysics.Channel.Vehicle, VehiclePhysics.VehicleData.EngineRpm) / 1000f;
-                    gear = v.data.Get(VehiclePhysics.Channel.Vehicle, VehiclePhysics.VehicleData.GearboxGear);
+                    RequestToggleMenu();
                 }
+                GUILayout.EndHorizontal();
+
+                GUILayout.Space(2);
+
+                // Mode Badge
+                string presetColor = VehicleTunerHook.CurrentPreset switch
+                {
+                    TuningPreset.Stock => "#AAAAAA",
+                    TuningPreset.StreetPerformance => "#00FF88",
+                    TuningPreset.OffroadLifted => "#FFAA00",
+                    TuningPreset.DriftSpec => "#00E5FF",
+                    TuningPreset.HyperInsane => "#FF00FF",
+                    _ => "#FFFF00"
+                };
+                string presetName = VehicleTunerHook.CurrentPreset switch
+                {
+                    TuningPreset.Stock => "FACTORY STOCK",
+                    TuningPreset.StreetPerformance => "STREET PERFORMANCE",
+                    TuningPreset.OffroadLifted => "OFFROAD HAULER",
+                    TuningPreset.DriftSpec => "DRIFT SPEC",
+                    TuningPreset.HyperInsane => "HYPER OVERKILL",
+                    _ => "CUSTOM TUNED"
+                };
+                GUILayout.Label($"<b>Mode: <color={presetColor}>[{presetName}]</color></b>");
+
+                // Speed & Gear
+                float speedKmh = Mathf.Abs(v.speed * 3.6f);
+                float speedMph = Mathf.Abs(v.speed * 2.23694f);
+                int gear = 0;
+                float rpm = 0f;
+                try
+                {
+                    if (v.data != null)
+                    {
+                        rpm = v.data.Get(VehiclePhysics.Channel.Vehicle, VehiclePhysics.VehicleData.EngineRpm) / 1000f;
+                        gear = v.data.Get(VehiclePhysics.Channel.Vehicle, VehiclePhysics.VehicleData.GearboxGear);
+                    }
+                }
+                catch { }
+
+                string gearStr = gear switch
+                {
+                    0 => "N",
+                    -1 => "R",
+                    _ => $"D{gear}"
+                };
+
+                GUILayout.Label($"<b>Speed:</b> {speedKmh:F0} km/h ({speedMph:F0} mph) | <b>Gear:</b> <color=#00FF88>{gearStr}</color>");
+
+                // RPM Gauge with ASCII progress bar
+                float maxRpm = v.engine != null ? v.engine.maxRpm : 3500f;
+                float rpmRatio = Mathf.Clamp01(rpm / Mathf.Max(maxRpm, 1f));
+                int totalBars = 16;
+                int filledBars = Mathf.RoundToInt(rpmRatio * totalBars);
+                string bar = new string('=', filledBars) + new string('.', totalBars - filledBars);
+                GUILayout.Label($"<b>RPM:</b> {rpm:F0} / {maxRpm:F0} <color=#FF8800>[{bar}]</color>");
+
+                // Torque & Steer
+                float torque = v.engine != null ? v.engine.peakRpmTorque : 0f;
+                float steerAngle = v.steering != null ? v.steering.maxSteerAngle : 35f;
+                GUILayout.Label($"<b>Torque:</b> {torque:N0} Nm ({VehicleTunerHook.TorqueMultiplier:F1}x) | <b>Steer:</b> {steerAngle:F0} deg");
             }
-            catch { }
-
-            string gearStr = gear switch
+            finally
             {
-                0 => "N",
-                -1 => "R",
-                _ => $"D{gear}"
-            };
-
-            GUILayout.Label($"<b>Speed:</b> {speedKmh:F0} km/h ({speedMph:F0} mph) | <b>Gear:</b> <color=#00FF88>{gearStr}</color>");
-
-            // RPM Gauge with ASCII progress bar
-            float maxRpm = v.engine != null ? v.engine.maxRpm : 3500f;
-            float rpmRatio = Mathf.Clamp01(rpm / Mathf.Max(maxRpm, 1f));
-            int totalBars = 16;
-            int filledBars = Mathf.RoundToInt(rpmRatio * totalBars);
-            string bar = new string('=', filledBars) + new string('.', totalBars - filledBars);
-            GUILayout.Label($"<b>RPM:</b> {rpm:F0} / {maxRpm:F0} <color=#FF8800>[{bar}]</color>");
-
-            // Torque & Steer
-            float torque = v.engine != null ? v.engine.peakRpmTorque : 0f;
-            float steerAngle = v.steering != null ? v.steering.maxSteerAngle : 35f;
-            GUILayout.Label($"<b>Torque:</b> {torque:N0} Nm ({VehicleTunerHook.TorqueMultiplier:F1}x) | <b>Steer:</b> {steerAngle:F0} deg");
-
-            GUILayout.EndArea();
+                GUILayout.EndArea();
+            }
         }
 
         // ==========================================
@@ -276,119 +336,99 @@ namespace ExtendedWhips.UI
             var v = VehicleTunerHook.CurrentVehicle;
             var stock = VehicleTunerHook.CurrentStockSpecs;
 
-            // Handle Header Dragging
-            Rect headerRect = new Rect(_menuRect.x, _menuRect.y, _menuRect.width, 36f);
-            if (Event.current.type == EventType.MouseDown && headerRect.Contains(Event.current.mousePosition))
+            // Single unified area for entire window - zero nested BeginArea calls
+            GUI.backgroundColor = new Color(0.06f, 0.08f, 0.12f, 0.98f);
+            GUILayout.BeginArea(_menuRect, GUI.skin.box);
+            try
             {
-                _isDragging = true;
-                _dragOffset = Event.current.mousePosition - new Vector2(_menuRect.x, _menuRect.y);
-            }
-            else if (Event.current.type == EventType.MouseUp)
-            {
-                _isDragging = false;
-            }
-            else if (_isDragging && Event.current.type == EventType.MouseDrag)
-            {
-                _menuRect.x = Event.current.mousePosition.x - _dragOffset.x;
-                _menuRect.y = Event.current.mousePosition.y - _dragOffset.y;
-            }
-
-            // Window Background
-            GUI.backgroundColor = new Color(0.06f, 0.08f, 0.11f, 0.98f);
-            GUI.Box(_menuRect, "");
-
-            // Window Title Bar
-            GUI.backgroundColor = new Color(0.08f, 0.12f, 0.18f, 1.0f);
-            GUI.Box(headerRect, "");
-
-            // Title Bar Cyan Glow
-            GUI.backgroundColor = new Color(0.0f, 0.85f, 1.0f, 1.0f);
-            GUI.Box(new Rect(_menuRect.x, _menuRect.y, _menuRect.width, 3), "");
-
-            // Title Bar Text & Close Button
-            GUILayout.BeginArea(new Rect(_menuRect.x + 12, _menuRect.y + 6, _menuRect.width - 24, 28));
-            GUILayout.BeginHorizontal();
-            GUILayout.Label("<b><size=13><color=#00E5FF>EXTENDED WHIPS</color> // <color=#FFFFFF>VEHICLE CONFIGURATOR</color></size></b>");
-            GUILayout.FlexibleSpace();
-            GUI.backgroundColor = new Color(0.9f, 0.2f, 0.2f, 1.0f);
-            if (GUILayout.Button("[X]", GUILayout.Width(35), GUILayout.Height(22)))
-            {
-                ToggleMenu();
-            }
-            GUILayout.EndHorizontal();
-            GUILayout.EndArea();
-
-            // Window Content Body
-            GUILayout.BeginArea(new Rect(_menuRect.x + 16, _menuRect.y + 42, _menuRect.width - 32, _menuRect.height - 52));
-
-            // Vehicle Subheader Info
-            string vehRoot = v != null && v.transform.root != null ? v.transform.root.name : "No Vehicle";
-            float curTorque = v != null && v.engine != null ? v.engine.peakRpmTorque : 0;
-            float stockTorque = stock != null ? stock.PeakTorque : 0;
-            GUILayout.Label($"<b>Vehicle:</b> <color=#FFD700>{vehRoot}</color> | <b>Torque:</b> {curTorque:N0} Nm (Stock: {stockTorque:N0} Nm)");
-
-            GUILayout.Space(6);
-
-            // Tab Navigation Bar
-            int targetTab = _selectedTab;
-            GUILayout.BeginHorizontal();
-            for (int i = 0; i < _tabNames.Length; i++)
-            {
-                GUI.backgroundColor = _selectedTab == i ? new Color(0.0f, 0.75f, 0.95f, 1.0f) : new Color(0.14f, 0.18f, 0.24f, 1.0f);
-                if (GUILayout.Button(_tabNames[i], GUILayout.Height(30)))
+                // 1. Header row
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("<b><color=#00E5FF>EXTENDED WHIPS</color> // VEHICLE CONFIGURATOR</b>");
+                GUILayout.FlexibleSpace();
+                GUI.backgroundColor = new Color(0.9f, 0.2f, 0.2f, 1.0f);
+                if (GUILayout.Button("[X]", GUILayout.Width(35), GUILayout.Height(22)))
                 {
-                    targetTab = i;
+                    RequestCloseMenu();
                 }
+                GUILayout.EndHorizontal();
+
+                // 2. Subheader vehicle info
+                string vehRoot = v != null && v.transform.root != null ? v.transform.root.name : "No Vehicle";
+                float curTorque = v != null && v.engine != null ? v.engine.peakRpmTorque : 0;
+                float stockTorque = stock != null ? stock.PeakTorque : 0;
+                GUILayout.Label($"<b>Vehicle:</b> <color=#FFD700>{vehRoot}</color> | <b>Torque:</b> {curTorque:N0} Nm (Stock: {stockTorque:N0} Nm)");
+
+                GUILayout.Space(4);
+
+                // 3. Tab Bar
+                GUILayout.BeginHorizontal();
+                for (int i = 0; i < _tabNames.Length; i++)
+                {
+                    GUI.backgroundColor = _selectedTab == i ? new Color(0.0f, 0.75f, 0.95f, 1.0f) : new Color(0.14f, 0.18f, 0.24f, 1.0f);
+                    if (GUILayout.Button(_tabNames[i], GUILayout.Height(28)))
+                    {
+                        RequestTab(i);
+                    }
+                }
+                GUILayout.EndHorizontal();
+
+                GUILayout.Space(8);
+
+                // 4. Tab Body inside ScrollView
+                _scrollPosition = GUILayout.BeginScrollView(_scrollPosition, GUILayout.Height(370));
+                try
+                {
+                    switch (_selectedTab)
+                    {
+                        case 0:
+                            DrawPresetsTab();
+                            break;
+                        case 1:
+                            DrawEngineTab(v, stock);
+                            break;
+                        case 2:
+                            DrawHandlingTab(v, stock);
+                            break;
+                        case 3:
+                            DrawTelemetryTab(v, stock);
+                            break;
+                        case 4:
+                            DrawWhipsTab();
+                            break;
+                    }
+                }
+                finally
+                {
+                    GUILayout.EndScrollView();
+                }
+
+                GUILayout.Space(6);
+
+                // 5. Footer Actions Bar
+                GUILayout.BeginHorizontal();
+                GUI.backgroundColor = new Color(0.7f, 0.3f, 0.1f, 1.0f);
+                if (GUILayout.Button("Reset Stock [F8]", GUILayout.Height(30)))
+                {
+                    VehicleTunerHook.ResetToStock(showToast: true);
+                }
+
+                GUI.backgroundColor = new Color(0.15f, 0.2f, 0.28f, 1.0f);
+                if (GUILayout.Button(IsHudVisible ? "Hide HUD [F6]" : "Show HUD [F6]", GUILayout.Height(30)))
+                {
+                    RequestToggleHud();
+                }
+
+                GUI.backgroundColor = new Color(0.1f, 0.5f, 0.8f, 1.0f);
+                if (GUILayout.Button("Close Menu [F4]", GUILayout.Height(30)))
+                {
+                    RequestCloseMenu();
+                }
+                GUILayout.EndHorizontal();
             }
-            GUILayout.EndHorizontal();
-            _selectedTab = targetTab;
-
-            GUILayout.Space(10);
-
-            // Render Tab Body
-            switch (_selectedTab)
+            finally
             {
-                case 0:
-                    DrawPresetsTab();
-                    break;
-                case 1:
-                    DrawEngineTab(v, stock);
-                    break;
-                case 2:
-                    DrawHandlingTab(v, stock);
-                    break;
-                case 3:
-                    DrawTelemetryTab(v, stock);
-                    break;
-                case 4:
-                    DrawWhipsTab();
-                    break;
+                GUILayout.EndArea();
             }
-
-            GUILayout.FlexibleSpace();
-
-            // Footer Actions Bar
-            GUILayout.BeginHorizontal();
-            GUI.backgroundColor = new Color(0.7f, 0.3f, 0.1f, 1.0f);
-            if (GUILayout.Button("Reset Stock [F8]", GUILayout.Height(32)))
-            {
-                VehicleTunerHook.ResetToStock(showToast: true);
-            }
-
-            GUI.backgroundColor = new Color(0.15f, 0.2f, 0.28f, 1.0f);
-            if (GUILayout.Button(IsHudVisible ? "Hide HUD [F6]" : "Show HUD [F6]", GUILayout.Height(32)))
-            {
-                ToggleHud();
-            }
-
-            GUI.backgroundColor = new Color(0.1f, 0.5f, 0.8f, 1.0f);
-            if (GUILayout.Button("Close Menu [F4]", GUILayout.Height(32)))
-            {
-                ToggleMenu();
-            }
-            GUILayout.EndHorizontal();
-
-            GUILayout.EndArea();
         }
 
         // ==========================================
@@ -396,13 +436,13 @@ namespace ExtendedWhips.UI
         // ==========================================
         private static void DrawPresetsTab()
         {
-            GUILayout.Label("<b><size=13><color=#00E5FF>Quick Vehicle Tuning Presets:</color></size></b>");
-            GUILayout.Label("Click any preset to apply engine, redline, steering, and braking tunes.");
+            GUILayout.Label("<b><color=#00E5FF>Quick Vehicle Tuning Presets:</color></b>");
+            GUILayout.Label("Select any preset to apply engine, redline, steering, and braking tunes.");
             GUILayout.Space(6);
 
             // Preset: Stock
             GUI.backgroundColor = new Color(0.2f, 0.25f, 0.3f, 1.0f);
-            if (GUILayout.Button("<b>[ FACTORY STOCK (OEM Specs) ]</b>\n<size=11>Restores original 1.0x torque, factory redline, normal steering lock, and stock braking.</size>", GUILayout.Height(46)))
+            if (GUILayout.Button("[ FACTORY STOCK (OEM Specs) ]\nRestore 1.0x torque, factory redline, stock steering, and stock brakes.", GUILayout.Height(42)))
             {
                 VehicleTunerHook.ResetToStock(showToast: true);
             }
@@ -411,7 +451,7 @@ namespace ExtendedWhips.UI
 
             // Preset: Street Performance
             GUI.backgroundColor = new Color(0.0f, 0.6f, 0.35f, 1.0f);
-            if (GUILayout.Button("<b>[ STREET PERFORMANCE (Fast Transit & Highway) ]</b>\n<size=11>2.5x Torque | 1.4x RPM Redline | +5 deg Steering Angle | 2.0x High Braking Power.</size>", GUILayout.Height(46)))
+            if (GUILayout.Button("[ STREET PERFORMANCE ]\n2.5x Torque | 1.4x RPM Redline | +5 deg Steering Lock | 2.0x High Brakes", GUILayout.Height(42)))
             {
                 VehicleTunerHook.ApplyPreset(TuningPreset.StreetPerformance, showToast: true);
             }
@@ -420,7 +460,7 @@ namespace ExtendedWhips.UI
 
             // Preset: Offroad Hauler
             GUI.backgroundColor = new Color(0.75f, 0.45f, 0.05f, 1.0f);
-            if (GUILayout.Button("<b>[ OFFROAD HEAVY HAULER (Massive Low-End Crawler) ]</b>\n<size=11>3.5x Torque | 3.0x Idle Pull | 2.5x Heavy Brakes. Pulls steep hills and muddy excavations.</size>", GUILayout.Height(46)))
+            if (GUILayout.Button("[ OFFROAD HEAVY HAULER ]\n3.5x Torque | 3.0x Idle Pull | 2.5x Heavy Duty Brakes", GUILayout.Height(42)))
             {
                 VehicleTunerHook.ApplyPreset(TuningPreset.OffroadLifted, showToast: true);
             }
@@ -429,7 +469,7 @@ namespace ExtendedWhips.UI
 
             // Preset: Drift Spec
             GUI.backgroundColor = new Color(0.0f, 0.5f, 0.75f, 1.0f);
-            if (GUILayout.Button("<b>[ DRIFT SPEC (Deep Steer Angle & Instant E-Brake) ]</b>\n<size=11>3.0x Torque | 1.5x Redline | +15 deg Steer Angle | 4.5x Instant Rear Axle Handbrake Lock.</size>", GUILayout.Height(46)))
+            if (GUILayout.Button("[ DRIFT SPEC ]\n3.0x Torque | 1.5x Redline | +15 deg Steering Angle | 4.5x Instant E-Brake", GUILayout.Height(42)))
             {
                 VehicleTunerHook.ApplyPreset(TuningPreset.DriftSpec, showToast: true);
             }
@@ -438,7 +478,7 @@ namespace ExtendedWhips.UI
 
             // Preset: Hyper Overkill
             GUI.backgroundColor = new Color(0.6f, 0.1f, 0.6f, 1.0f);
-            if (GUILayout.Button("<b>[ HYPER OVERKILL (Unleashed Monster Machine) ]</b>\n<size=11>5.0x Torque | 2.0x Redline | +20 deg Max Steer | 3.5x Super Brakes. Maximum speed.</size>", GUILayout.Height(46)))
+            if (GUILayout.Button("[ HYPER OVERKILL ]\n5.0x Torque | 2.0x Redline | +20 deg Max Steer | Super Brakes", GUILayout.Height(42)))
             {
                 VehicleTunerHook.ApplyPreset(TuningPreset.HyperInsane, showToast: true);
             }
@@ -449,7 +489,7 @@ namespace ExtendedWhips.UI
         // ==========================================
         private static void DrawEngineTab(VPVehicleController? v, StockVehicleSpecs? stock)
         {
-            GUILayout.Label("<b><size=13><color=#00E5FF>Engine & Powertrain Tuning:</color></size></b>");
+            GUILayout.Label("<b><color=#00E5FF>Engine & Powertrain Tuning:</color></b>");
             GUILayout.Space(5);
 
             float stockTorque = stock != null ? stock.PeakTorque : 2000f;
@@ -463,7 +503,7 @@ namespace ExtendedWhips.UI
             if (GUILayout.Button("-0.5x", GUILayout.Width(45))) VehicleTunerHook.SetTorqueMultiplier(VehicleTunerHook.TorqueMultiplier - 0.5f, showToast: true);
             if (GUILayout.Button("+0.5x", GUILayout.Width(45))) VehicleTunerHook.SetTorqueMultiplier(VehicleTunerHook.TorqueMultiplier + 0.5f, showToast: true);
             if (GUILayout.Button("2.5x", GUILayout.Width(45))) VehicleTunerHook.SetTorqueMultiplier(2.5f, showToast: true);
-            if (GUILayout.Button("Max 6x", GUILayout.Width(50))) VehicleTunerHook.SetTorqueMultiplier(6.0f, showToast: true);
+            if (GUILayout.Button("Max 6x", GUILayout.Width(55))) VehicleTunerHook.SetTorqueMultiplier(6.0f, showToast: true);
             GUILayout.EndHorizontal();
 
             float newTorque = GUILayout.HorizontalSlider(VehicleTunerHook.TorqueMultiplier, 0.5f, 6.0f);
@@ -509,7 +549,7 @@ namespace ExtendedWhips.UI
         // ==========================================
         private static void DrawHandlingTab(VPVehicleController? v, StockVehicleSpecs? stock)
         {
-            GUILayout.Label("<b><size=13><color=#00E5FF>Steering, Handling & Braking:</color></size></b>");
+            GUILayout.Label("<b><color=#00E5FF>Steering, Handling & Braking:</color></b>");
             GUILayout.Space(5);
 
             float stockSteer = stock != null ? stock.MaxSteerAngle : 35f;
@@ -561,7 +601,7 @@ namespace ExtendedWhips.UI
         // ==========================================
         private static void DrawTelemetryTab(VPVehicleController? v, StockVehicleSpecs? stock)
         {
-            GUILayout.Label("<b><size=13><color=#00E5FF>Real-Time Vehicle Telemetry & Physics:</color></size></b>");
+            GUILayout.Label("<b><color=#00E5FF>Real-Time Vehicle Telemetry & Physics:</color></b>");
             GUILayout.Space(5);
 
             if (v == null)
@@ -608,7 +648,7 @@ namespace ExtendedWhips.UI
         // ==========================================
         private static void DrawWhipsTab()
         {
-            GUILayout.Label("<b><size=13><color=#00E5FF>Custom Vehicles (Whips) Pipeline:</color></size></b>");
+            GUILayout.Label("<b><color=#00E5FF>Custom Vehicles (Whips) Pipeline:</color></b>");
             GUILayout.Space(5);
 
             GUILayout.Label("Add custom pickup trucks, cars, and motorcycles via Unity AssetBundles into:\n<color=#FFD700>BepInEx/plugins/ExtendedWhips/bundles/</color>");
