@@ -1,37 +1,52 @@
 using System;
 using System.IO;
-using System.Collections.Generic;
-using LibCpp2IL;
-using AssetRipper.Primitives;
+using System.Linq;
+using Mono.Cecil;
 
 class Program
 {
     static void Main()
     {
-        string gameDir = @"D:\SteamLibrary\steamapps\common\Construction Simulator";
-        string assemblyPath = Path.Combine(gameDir, "GameAssembly.dll");
-        string metadataPath = Path.Combine(gameDir, "ConSim_Data", "il2cpp_data", "Metadata", "global-metadata.dat");
+        string interopDir = @"D:\SteamLibrary\steamapps\common\Construction Simulator\BepInEx\interop";
+        string coreDir = @"D:\SteamLibrary\steamapps\common\Construction Simulator\BepInEx\core";
+        var resolver = new DefaultAssemblyResolver();
+        resolver.AddSearchDirectory(interopDir);
+        resolver.AddSearchDirectory(coreDir);
+        var readerParams = new ReaderParameters { AssemblyResolver = resolver };
 
-        var metadataBytes = File.ReadAllBytes(metadataPath);
-        var binaryBytes = File.ReadAllBytes(assemblyPath);
+        var asm = AssemblyDefinition.ReadAssembly(Path.Combine(interopDir, "Wb.GameScripts.dll"), readerParams);
+        var vp = asm.MainModule.Types.First(t => t.Name == "VPVehicleController");
 
-        LibCpp2IlMain.Initialize(binaryBytes, metadataBytes, new UnityVersion(2020, 3, 49));
-
-        ulong targetVA = 0x18025B830;
-        Console.WriteLine($"Searching for all CALL instructions to 0x{targetVA:X} in binary...");
-
-        // A relative CALL in x64 is opcode E8 followed by 4-byte signed displacement:
-        // displacement = targetVA - (callInstrVA + 5)
-        // callInstrVA + 5 + displacement = targetVA
-        int matches = 0;
-        for (int i = 0; i < binaryBytes.Length - 5; i++)
+        foreach (var t in asm.MainModule.Types.Where(t => t.IsEnum && (t.Name.Contains("Driven") || t.Name.Contains("Differential") || t.Name.Contains("Clutch") || t.Name.Contains("Gearbox"))))
         {
-            if (binaryBytes[i] == 0xE8)
+            Console.WriteLine($"\nEnum: {t.FullName}");
+            foreach (var f in t.Fields.Where(f => f.IsStatic))
             {
-                int disp = BitConverter.ToInt32(binaryBytes, i + 1);
-                // Calculate target address assuming binary offset to VA mapping
-                // Let's check if (callerVA + 5 + disp) == targetVA
-                // But callerVA depends on section. Let's check sections.
+                Console.WriteLine($"  {f.Name} = {f.Constant}");
+            }
+        }
+
+        var wheelType = asm.MainModule.Types.FirstOrDefault(t => t.Name == "VPWheelCollider");
+        if (wheelType != null)
+        {
+            Console.WriteLine($"\n==========================================");
+            Console.WriteLine($" VPWheelCollider: {wheelType.FullName}");
+            Console.WriteLine($"==========================================");
+            foreach (var p in wheelType.Properties)
+            {
+                Console.WriteLine($"  prop:  {p.PropertyType.Name} {p.Name}");
+            }
+        }
+
+        var tireType = asm.MainModule.Types.FirstOrDefault(t => t.FullName.Contains("TireFriction/Settings") || t.Name.Contains("TireFriction"));
+        if (tireType != null)
+        {
+            Console.WriteLine($"\n==========================================");
+            Console.WriteLine($" TireFriction: {tireType.FullName}");
+            Console.WriteLine($"==========================================");
+            foreach (var p in tireType.Properties)
+            {
+                Console.WriteLine($"  prop:  {p.PropertyType.Name} {p.Name}");
             }
         }
     }
