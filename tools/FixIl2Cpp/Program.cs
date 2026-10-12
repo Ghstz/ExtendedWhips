@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
 using LibCpp2IL;
 using AssetRipper.Primitives;
 
@@ -16,16 +17,21 @@ class Program
 
         LibCpp2IlMain.Initialize(binaryBytes, metadataBytes, new UnityVersion(2020, 3, 49));
 
-        Console.WriteLine("Searching for string literal 'super size factor'...");
-        for (int i = 0; i < LibCpp2IlMain.TheMetadata.stringLiterals.Length; i++)
+        ulong targetVA = 0x18025B830;
+        Console.WriteLine($"Searching for all CALL instructions to 0x{targetVA:X} in binary...");
+
+        // A relative CALL in x64 is opcode E8 followed by 4-byte signed displacement:
+        // displacement = targetVA - (callInstrVA + 5)
+        // callInstrVA + 5 + displacement = targetVA
+        int matches = 0;
+        for (int i = 0; i < binaryBytes.Length - 5; i++)
         {
-            var str = LibCpp2IlMain.TheMetadata.GetStringLiteralFromIndex((uint)i);
-            if (str != null && str.Contains("super size factor"))
+            if (binaryBytes[i] == 0xE8)
             {
-                Console.WriteLine($"Found string literal index {i}: '{str}'");
-                // Check string literal usages
-                var usages = LibCpp2IlMain.TheMetadata.GetMetadataUsageList((uint)i);
-                Console.WriteLine($"Usages: {usages?.Count ?? 0}");
+                int disp = BitConverter.ToInt32(binaryBytes, i + 1);
+                // Calculate target address assuming binary offset to VA mapping
+                // Let's check if (callerVA + 5 + disp) == targetVA
+                // But callerVA depends on section. Let's check sections.
             }
         }
     }

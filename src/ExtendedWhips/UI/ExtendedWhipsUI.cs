@@ -11,15 +11,22 @@ namespace ExtendedWhips.UI
     [HarmonyPatch(typeof(DemoGUIMessage), nameof(DemoGUIMessage.OnGUI))]
     public static class DemoGuiMessagePatch
     {
+        private static int _loggedPumps = 0;
+
         public static bool Prefix(DemoGUIMessage __instance)
         {
+            if (_loggedPumps++ < 3)
+            {
+                Plugin.LogMsg($"[ExtendedWhips] IMGUI host OnGUI active (Frame={Time.frameCount}, Event={Event.current?.type})");
+            }
+
             try
             {
                 ExtendedWhipsUI.OnRenderGUI();
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[ExtendedWhips] IMGUI Render Error: {ex.Message}");
+                Plugin.LogMsg($"[ExtendedWhips] IMGUI Render Error: {ex.Message}");
             }
             return false; // Skip DemoGUIMessage default label drawing
         }
@@ -57,12 +64,16 @@ namespace ExtendedWhips.UI
         public static void ToggleMenu()
         {
             IsMenuOpen = !IsMenuOpen;
+            Plugin.LogMsg($"[ExtendedWhips] ToggleMenu called: IsMenuOpen = {IsMenuOpen}");
             try
             {
                 Cursor.visible = IsMenuOpen;
                 Cursor.lockState = IsMenuOpen ? CursorLockMode.None : CursorLockMode.Locked;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Plugin.LogMsg($"[ExtendedWhips] Cursor state note: {ex.Message}");
+            }
         }
 
         public static void ToggleHud()
@@ -253,8 +264,15 @@ namespace ExtendedWhips.UI
         // ==========================================
         // 3. FULL VEHICLE CONFIGURATION MENU WINDOW
         // ==========================================
+        private static bool _loggedMenuWindow = false;
         private static void DrawMenuWindow()
         {
+            if (!_loggedMenuWindow)
+            {
+                Plugin.LogMsg("[ExtendedWhips] DrawMenuWindow active and rendering!");
+                _loggedMenuWindow = true;
+            }
+
             var v = VehicleTunerHook.CurrentVehicle;
             var stock = VehicleTunerHook.CurrentStockSpecs;
 

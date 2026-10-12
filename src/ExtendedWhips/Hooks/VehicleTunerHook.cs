@@ -69,10 +69,10 @@ namespace ExtendedWhips.Hooks
 
         private static void HandleInput(VPVehicleController instance)
         {
-            // [F4] or [F7] or [Insert] or [F2] Toggle Full Vehicle Configuration Menu
-            if (Input.GetKeyDown(KeyCode.F4) || Input.GetKeyDown(KeyCode.F7) || Input.GetKeyDown(KeyCode.Insert) || Input.GetKeyDown(KeyCode.F2))
+            // [F4] or [Insert] or [F2] Toggle Full Vehicle Configuration Menu
+            if (Input.GetKeyDown(KeyCode.F4) || Input.GetKeyDown(KeyCode.Insert) || Input.GetKeyDown(KeyCode.F2))
             {
-                Plugin.LogMsg("[ExtendedWhips] Menu toggle key pressed");
+                Plugin.LogMsg("[ExtendedWhips] Menu toggle key pressed (F4/Insert/F2)");
                 ExtendedWhipsUI.ToggleMenu();
             }
 

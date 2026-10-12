@@ -27,7 +27,7 @@ namespace ExtendedWhips
             {
                 _harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
                 _harmony.PatchAll();
-                Log.LogInfo("Harmony vehicle physics, screenshot blocker & IMGUI hooks applied successfully!");
+                Log.LogInfo("Harmony vehicle physics & IMGUI hooks applied successfully!");
             }
             catch (Exception ex)
             {
@@ -50,33 +50,13 @@ namespace ExtendedWhips
 
             Log.LogInfo("=============================================================");
             Log.LogInfo(" [ExtendedWhips] READY! In-Game Controls:");
-            Log.LogInfo("  - [F4] / [F7] / [Insert] : Open / Close Vehicle Config Menu");
-            Log.LogInfo("  - [F6]        : Toggle Live Telemetry HUD Overlay");
-            Log.LogInfo("  - [F5]        : Quick Cycle Presets (Street / Offroad / Drift / Hyper / Stock)");
-            Log.LogInfo("  - [Page Up]   : Increase Engine Torque (+0.5x)");
-            Log.LogInfo("  - [Page Down] : Decrease Engine Torque (-0.5x)");
-            Log.LogInfo("  - [F8]        : Reset Vehicle to Factory Stock Specs");
+            Log.LogInfo("  - [F4] or [Insert] : Open / Close Vehicle Config Menu");
+            Log.LogInfo("  - [F6]             : Toggle Live Telemetry HUD Overlay");
+            Log.LogInfo("  - [F5]             : Quick Cycle Presets (Street / Offroad / Drift / Hyper / Stock)");
+            Log.LogInfo("  - [Page Up]        : Increase Engine Torque (+0.5x)");
+            Log.LogInfo("  - [Page Down]      : Decrease Engine Torque (-0.5x)");
+            Log.LogInfo("  - [F8]             : Reset Vehicle to Factory Stock Specs");
             Log.LogInfo("=============================================================");
-        }
-    }
-
-    [HarmonyPatch(typeof(Wb.UI.WbUIInputHandler), nameof(Wb.UI.WbUIInputHandler.OnCaptureScreenshotPressed))]
-    public static class BlockScreenshotHook1
-    {
-        public static bool Prefix()
-        {
-            Plugin.LogMsg("[ExtendedWhips] Intercepted default screenshot trigger on F7");
-            return false;
-        }
-    }
-
-    [HarmonyPatch(typeof(Wb.WbAdministrationDebug), nameof(Wb.WbAdministrationDebug.CaptureScreenshot))]
-    public static class BlockScreenshotHook2
-    {
-        public static bool Prefix()
-        {
-            Plugin.LogMsg("[ExtendedWhips] Intercepted WbAdministrationDebug.CaptureScreenshot");
-            return false;
         }
     }
 
