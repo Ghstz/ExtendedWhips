@@ -8,6 +8,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <GameDir Condition="'$(GameDir)' == ''">D:\SteamLibrary\steamapps\common\Construction Simulator</GameDir>
   </PropertyGroup>
 
@@ -23,6 +24,9 @@
     <Reference Include="$(GameDir)\BepInEx\interop\*.dll">
       <Private>false</Private>
     </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="SharpGLTF.Core" Version="1.0.7" />
   </ItemGroup>
 
 </Project>

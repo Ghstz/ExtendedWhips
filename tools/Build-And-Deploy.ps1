@@ -38,7 +38,7 @@ if (-not (Test-Path $GamePluginsDir)) {
     New-Item -ItemType Directory -Path $GamePluginsDir -Force | Out-Null
 }
 
-Copy-Item $OutputDll -Destination $GamePluginsDir -Force
-Write-Host "Deployed successfully!" -ForegroundColor Green
+Copy-Item (Join-Path $OutputDir "*.dll") -Destination $GamePluginsDir -Force
+Write-Host "Deployed successfully (including dependencies)!" -ForegroundColor Green
 Write-Host "Ready to run Construction Simulator with the mod."
 

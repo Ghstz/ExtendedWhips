@@ -1,10 +1,13 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using HarmonyLib;
 using UnityEngine;
 using RootMotion;
 using ExtendedWhips.Hooks;
 using ExtendedWhips.Tuning;
 using ExtendedWhips.Spawning;
+using ExtendedWhips.Models;
 
 namespace ExtendedWhips.UI
 {
@@ -783,27 +786,112 @@ namespace ExtendedWhips.UI
         }
 
         // ==========================================
-        // TAB 7: CUSTOM WHIPS & SPAWNER
+        // TAB 7: CUSTOM WHIPS & BODY SWAP GALLERY
         // ==========================================
         private static void DrawWhipsTab()
         {
-            GUILayout.Label("<b><color=#00E5FF>Custom Vehicles (Whips) Pipeline:</color></b>");
-            GUILayout.Space(5);
+            var v = VehicleTunerHook.CurrentVehicle;
+            var activeSkin = VehicleReskinManager.GetActiveSkin(v);
 
-            GUILayout.Label("Add custom pickup trucks, supercars, and vehicles via Unity AssetBundles into:\n<color=#FFD700>BepInEx/plugins/ExtendedWhips/bundles/</color>");
-            GUILayout.Space(8);
-
-            GUI.backgroundColor = new Color(0.0f, 0.6f, 0.85f, 1.0f);
-            if (GUILayout.Button("Spawn Custom Whip In Front of Camera", GUILayout.Height(38)))
+            // Active Vehicle Header
+            GUILayout.BeginHorizontal();
+            if (activeSkin != null)
             {
-                VehicleSpawner.Instance.SpawnCurrentVehicle();
+                GUILayout.Label($"<b>Mounted Body:</b> <color=#00E5FF>{activeSkin.DisplayName}</color> <color=#FFD700>[{activeSkin.Category}]</color>");
+                GUILayout.FlexibleSpace();
+                GUI.backgroundColor = new Color(0.8f, 0.2f, 0.2f, 1.0f);
+                if (GUILayout.Button("[Restore OEM Body]", GUILayout.Width(140), GUILayout.Height(24)))
+                {
+                    if (v != null) VehicleReskinManager.RestoreStockSkin(v);
+                }
             }
+            else
+            {
+                GUILayout.Label("<b>Mounted Body:</b> <color=#AAAAAA>FACTORY OEM STOCK (No Custom Skin)</color>");
+                GUILayout.FlexibleSpace();
+            }
+            GUILayout.EndHorizontal();
 
             GUILayout.Space(6);
-            GUI.backgroundColor = new Color(0.2f, 0.25f, 0.32f, 1.0f);
-            if (GUILayout.Button("Scan Bundles Directory", GUILayout.Height(30)))
+            GUILayout.Label("<size=11><color=#888888>Select any vehicle below to swap the current vehicle's body and wheels in real-time. Full Forza tuning applies to all models.</color></size>");
+            GUILayout.Space(8);
+
+            // Group by category
+            var categories = new[]
             {
-                ShowToast("ASSET BUNDLES", "Scanned plugins directory for custom whip packages.");
+                (VehicleTypeCategory.MuscleCar, "CARS & MUSCLE"),
+                (VehicleTypeCategory.SportsCar, "CARS & MUSCLE"),
+                (VehicleTypeCategory.Supercar, "CARS & MUSCLE"),
+                (VehicleTypeCategory.Truck, "TRUCKS & 4x4s"),
+                (VehicleTypeCategory.Offroad4x4, "TRUCKS & 4x4s"),
+                (VehicleTypeCategory.Motorcycle, "MOTORCYCLES")
+            };
+
+            var renderedCats = new HashSet<string>();
+
+            foreach (var groupName in new[] { "CARS & MUSCLE", "TRUCKS & 4x4s", "MOTORCYCLES" })
+            {
+                GUILayout.Box($"<b><color=#00E5FF>// {groupName}</color></b>", GUILayout.ExpandWidth(true));
+                GUILayout.Space(3);
+
+                var modelsInGroup = GlbVehicleLoader.Catalog.Where(m =>
+                {
+                    if (groupName == "CARS & MUSCLE") return m.Category == VehicleTypeCategory.MuscleCar || m.Category == VehicleTypeCategory.SportsCar || m.Category == VehicleTypeCategory.Supercar;
+                    if (groupName == "TRUCKS & 4x4s") return m.Category == VehicleTypeCategory.Truck || m.Category == VehicleTypeCategory.Offroad4x4;
+                    return m.Category == VehicleTypeCategory.Motorcycle;
+                }).ToList();
+
+                foreach (var model in modelsInGroup)
+                {
+                    bool isCurrent = activeSkin != null && activeSkin.Id == model.Id;
+                    
+                    GUILayout.BeginHorizontal();
+                    
+                    // Category Badge
+                    string badgeColor = model.Category switch
+                    {
+                        VehicleTypeCategory.MuscleCar => "#FF8800",
+                        VehicleTypeCategory.SportsCar => "#00E5FF",
+                        VehicleTypeCategory.Supercar => "#FF00FF",
+                        VehicleTypeCategory.Truck => "#FFAA00",
+                        VehicleTypeCategory.Offroad4x4 => "#00FF88",
+                        VehicleTypeCategory.Motorcycle => "#FF3366",
+                        _ => "#AAAAAA"
+                    };
+                    string badge = model.Category switch
+                    {
+                        VehicleTypeCategory.MuscleCar => "MUSCLE",
+                        VehicleTypeCategory.SportsCar => "SPORT",
+                        VehicleTypeCategory.Supercar => "HYPER",
+                        VehicleTypeCategory.Truck => "TRUCK",
+                        VehicleTypeCategory.Offroad4x4 => "4x4",
+                        VehicleTypeCategory.Motorcycle => "BIKE",
+                        _ => "CAR"
+                    };
+
+                    GUILayout.Label($"<color={badgeColor}>[{badge}]</color> <b>{model.DisplayName}</b>\n<size=11><color=#888888>{model.Subtitle}</color></size>", GUILayout.Width(440));
+                    GUILayout.FlexibleSpace();
+
+                    GUI.backgroundColor = isCurrent ? new Color(0.2f, 0.7f, 0.4f, 1.0f) : new Color(0.0f, 0.55f, 0.85f, 1.0f);
+                    string btnText = isCurrent ? "[CURRENT]" : "[SWAP BODY]";
+
+                    if (GUILayout.Button(btnText, GUILayout.Width(110), GUILayout.Height(32)))
+                    {
+                        if (v != null)
+                        {
+                            VehicleReskinManager.ApplySkin(v, model);
+                        }
+                        else
+                        {
+                            ShowToast("NO VEHICLE", "Enter or look at a vehicle before applying a body swap.");
+                        }
+                    }
+
+                    GUILayout.EndHorizontal();
+                    GUILayout.Space(4);
+                }
+
+                GUILayout.Space(6);
             }
         }
 

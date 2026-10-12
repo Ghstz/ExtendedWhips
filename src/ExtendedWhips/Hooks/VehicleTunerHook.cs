@@ -363,7 +363,7 @@ namespace ExtendedWhips.Hooks
             if (CurrentVehicle != null) ApplyTuningToInstance(CurrentVehicle);
         }
 
-        private static void ApplyTuningToInstance(VPVehicleController v)
+        public static void ApplyTuningToInstance(VPVehicleController v)
         {
             int vehicleId = v.GetInstanceID();
             if (!_stockCache.TryGetValue(vehicleId, out var stock)) return;

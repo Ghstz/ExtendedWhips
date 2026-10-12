@@ -26,4 +26,7 @@
       <HintPath>D:\SteamLibrary\steamapps\common\Construction Simulator\BepInEx\core\AssetRipper.Primitives.dll</HintPath>
     </Reference>
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="SharpGLTF.Core" Version="1.0.7" />
+  </ItemGroup>
 </Project>
