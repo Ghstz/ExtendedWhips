@@ -27,7 +27,7 @@
 * 🛞 **Dynamic Asphalt Rubber Skid Marks:** Burnouts and drifts lay down persistent tire marks on the road surface.
 * 📸 **Cinematic Drone Photo Mode (`[F9]`):** Freeze-time 6-DOF drone freecam with adjustable focal length / FOV, roll tilt, and clean 4K screenshot capture.
 * 🏎️ **Wisefab 70° Angle Kit & Gyro Drift Assist:** Extreme drift steering lock and gyro counter-steer stabilization.
-* 🎵 **In-Cabin Bluetooth Stereo:** Local audio playback with spatial acoustic low-pass filtering between cockpit and exterior cameras.
+* 🎵 **In-Cabin Bluetooth Stereo:** Local audio playback with spatial acoustic volume & blend modulation between cockpit and exterior cameras.
 * ⚡ **1,500 HP Cyber EV Swap:** Instant flat electric torque, direct drive, inverter whine, and one-pedal regenerative motor braking.
 * 💾 **Shareable Forza-Style Tune Codes:** 1-Click `WHIP-XXXX-XXXX` tune code generator and instant code applicator.
 * 💥 **Vehicle Wear & Quick Detail:** Physical collision scuffs and scratches with instant showroom quick-repair.

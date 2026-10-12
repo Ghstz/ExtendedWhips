@@ -178,31 +178,42 @@ namespace ExtendedWhips.Effects
                 if (l != null) l.enabled = true;
             }
 
-            if (asset.ExhaustAudioSource != null && _cachedPopClip != null)
+            if (asset.ExhaustAudioSource != null && _cachedPopClip != null && _cachedPopClip.samples > 0)
             {
                 asset.ExhaustAudioSource.pitch = UnityEngine.Random.Range(0.85f, 1.25f);
-                asset.ExhaustAudioSource.PlayOneShot(_cachedPopClip, UnityEngine.Random.Range(0.6f, 0.9f));
+                try { asset.ExhaustAudioSource.PlayOneShot(_cachedPopClip, UnityEngine.Random.Range(0.6f, 0.9f)); }
+                catch (Exception ex) { Plugin.LogOnce(ex); }
             }
         }
 
-        private static AudioClip GenerateSyntheticBackfireClip()
+        private static AudioClip? GenerateSyntheticBackfireClip()
         {
-            int sampleRate = 44100;
-            int sampleCount = (int)(sampleRate * 0.12f);
-            float[] samples = new float[sampleCount];
-
-            for (int i = 0; i < sampleCount; i++)
+            try
             {
-                float t = (float)i / sampleRate;
-                float env = Mathf.Exp(-t * 45f);
-                float noise = (UnityEngine.Random.value * 2f - 1f) * 0.8f;
-                float boom = Mathf.Sin(2f * Mathf.PI * 110f * t) * 0.6f;
-                samples[i] = (noise + boom) * env;
-            }
+                int sampleRate = 44100;
+                int sampleCount = (int)(sampleRate * 0.12f);
+                float[] samples = new float[sampleCount];
 
-            var clip = AudioClip.Create("CustomExhaustPop", sampleCount, 1, sampleRate, false);
-            clip.SetData(samples, 0);
-            return clip;
+                for (int i = 0; i < sampleCount; i++)
+                {
+                    float t = (float)i / sampleRate;
+                    float env = Mathf.Exp(-t * 45f);
+                    float noise = (UnityEngine.Random.value * 2f - 1f) * 0.8f;
+                    float boom = Mathf.Sin(2f * Mathf.PI * 110f * t) * 0.6f;
+                    samples[i] = (noise + boom) * env;
+                }
+
+                var clip = AudioClip.Create("CustomExhaustPop", sampleCount, 1, sampleRate, false);
+                if (clip == null) return null;
+                if (!clip.SetData(samples, 0)) return null;
+                if (clip.samples <= 0) return null;
+                return clip;
+            }
+            catch (Exception ex)
+            {
+                Plugin.LogOnce(ex);
+                return null;
+            }
         }
     }
 }

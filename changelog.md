@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.2] - 2026-10-12
+
+### Vehicle Spawn Crash Fix & Audio Fault-Tolerance
+Hotfix addressing an unhandled native access violation (`0xC0000005` in `coreclr.dll`) when spawning or reskinning custom vehicles.
+
+#### Fixed
+- **Stripped `AudioLowPassFilter` Removal:** Removed `AddComponent<AudioLowPassFilter>()` from `InCabinStereo.cs`. Construction Simulator's IL2CPP build stripped unused DSP filter components from `GameAssembly.dll`, which caused an immediate segfault when instantiated at runtime. Spatial in-cabin vs. exterior audio is now realistically simulated via volume and 3D spatial blend lerping.
+- **Fault-Tolerant Procedural AudioClips:** Wrapped synthetic `AudioClip.Create` and `SetData` generators across `CustomVehicleAudio`, `CustomVehicleExhaust`, `CustomVehicleNitrous`, `CustomEmergencyLighting`, `InCabinStereo`, and `EvPowertrainSystem` in null/validity verification (`clip.samples > 0`), gracefully returning null instead of throwing native errors.
+- **Safe Audio Playback in EV Powertrain:** Removed unconditional `_evAudioSource.Play()` at spawn in `EvPowertrainSystem.cs`. Audio playback is now gated by active vehicle speed and verified clip handles, preventing FMOD null pointer dereferences.
+- **Isolated GLB Effect Initialization:** Wrapped each individual effect subsystem initializer in `GlbVehicleLoader.LoadGlbModel` (`Lights`, `Exhaust`, `Audio`, `Nitrous`, `SurfaceFX`, `EmergencyLighting`, `Stereo`, `EvAudio`) in isolated try-catch boundaries, ensuring that any single subsystem failure will never abort a vehicle spawn or crash the game.
+
+---
+
 ## [2.1.1] - 2026-10-12
 
 ### Performance, GC Optimization & Stability Audit

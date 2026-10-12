@@ -29,8 +29,10 @@ namespace ExtendedWhips.Tuning
             _evAudioSource.volume = 0f;
 
             if (_inverterWhineClip == null) _inverterWhineClip = GenerateInverterWhineClip();
-            _evAudioSource.clip = _inverterWhineClip;
-            _evAudioSource.Play();
+            if (_inverterWhineClip != null && _inverterWhineClip.samples > 0)
+            {
+                _evAudioSource.clip = _inverterWhineClip;
+            }
         }
 
         public static void UpdateEvPowertrain(VPVehicleController v)
@@ -39,7 +41,15 @@ namespace ExtendedWhips.Tuning
 
             if (!IsEvSwapActive)
             {
-                if (_evAudioSource != null && _evAudioSource.volume > 0f) _evAudioSource.volume = 0f;
+                if (_evAudioSource != null)
+                {
+                    if (_evAudioSource.isPlaying)
+                    {
+                        try { _evAudioSource.Stop(); }
+                        catch (Exception ex) { Plugin.LogOnce(ex); }
+                    }
+                    _evAudioSource.volume = 0f;
+                }
                 return;
             }
 
@@ -71,8 +81,19 @@ namespace ExtendedWhips.Tuning
             }
 
             // 3. Cyber Inverter Sound Modulation
-            if (_evAudioSource != null)
+            if (_evAudioSource != null && _evAudioSource.clip != null && _evAudioSource.clip.samples > 0)
             {
+                if (!_evAudioSource.isPlaying && speedKmh > 1.0f)
+                {
+                    try { _evAudioSource.Play(); }
+                    catch (Exception ex) { Plugin.LogOnce(ex); }
+                }
+                else if (_evAudioSource.isPlaying && speedKmh <= 0.1f)
+                {
+                    try { _evAudioSource.Stop(); }
+                    catch (Exception ex) { Plugin.LogOnce(ex); }
+                }
+
                 float targetVol = Mathf.Clamp01(speedKmh / 90f) * 0.45f;
                 _evAudioSource.volume = Mathf.Lerp(_evAudioSource.volume, targetVol, Time.deltaTime * 6f);
                 // Pitch rises up to 3.0x with speed
@@ -80,25 +101,35 @@ namespace ExtendedWhips.Tuning
             }
         }
 
-        private static AudioClip GenerateInverterWhineClip()
+        private static AudioClip? GenerateInverterWhineClip()
         {
-            int sampleRate = 44100;
-            float duration = 1.0f;
-            int sampleCount = Mathf.RoundToInt(sampleRate * duration);
-            float[] samples = new float[sampleCount];
-
-            for (int i = 0; i < sampleCount; i++)
+            try
             {
-                float t = (float)i / sampleRate;
-                // High-frequency pure electric carrier wave (3,400 Hz)
-                float val = Mathf.Sin(t * Mathf.PI * 2f * 3400f) * 0.35f;
-                val += Mathf.Sin(t * Mathf.PI * 2f * 6800f) * 0.15f;
-                samples[i] = val;
-            }
+                int sampleRate = 44100;
+                float duration = 1.0f;
+                int sampleCount = Mathf.RoundToInt(sampleRate * duration);
+                float[] samples = new float[sampleCount];
 
-            var clip = AudioClip.Create("EvInverterWhine", sampleCount, 1, sampleRate, false);
-            clip.SetData(samples, 0);
-            return clip;
+                for (int i = 0; i < sampleCount; i++)
+                {
+                    float t = (float)i / sampleRate;
+                    // High-frequency pure electric carrier wave (3,400 Hz)
+                    float val = Mathf.Sin(t * Mathf.PI * 2f * 3400f) * 0.35f;
+                    val += Mathf.Sin(t * Mathf.PI * 2f * 6800f) * 0.15f;
+                    samples[i] = val;
+                }
+
+                var clip = AudioClip.Create("EvInverterWhine", sampleCount, 1, sampleRate, false);
+                if (clip == null) return null;
+                if (!clip.SetData(samples, 0)) return null;
+                if (clip.samples <= 0) return null;
+                return clip;
+            }
+            catch (Exception ex)
+            {
+                Plugin.LogOnce(ex);
+                return null;
+            }
         }
     }
 }

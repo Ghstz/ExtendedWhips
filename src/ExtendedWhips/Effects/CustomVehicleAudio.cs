@@ -73,7 +73,11 @@ namespace ExtendedWhips.Effects
                     float whinePitch = Mathf.Clamp(1.0f + (rpm - 2000f) / 3500f, 1.0f, 2.4f);
                     float whineVol = Mathf.Clamp01(throttle * 0.45f);
                     _audioSource.pitch = whinePitch;
-                    _audioSource.PlayOneShot(_superchargerClip, whineVol);
+                    if (_superchargerClip != null && _superchargerClip.samples > 0)
+                    {
+                        try { _audioSource.PlayOneShot(_superchargerClip, whineVol); }
+                        catch (Exception ex) { Plugin.LogOnce(ex); }
+                    }
                 }
             }
 
@@ -94,7 +98,11 @@ namespace ExtendedWhips.Effects
                 if (_prevThrottle > 0.45f && throttle < 0.10f && _boostPressure > 0.35f && (Time.time - _lastBovTime > 0.35f))
                 {
                     _audioSource.pitch = UnityEngine.Random.Range(0.95f, 1.15f);
-                    _audioSource.PlayOneShot(_turboBovClip, Mathf.Clamp01(_boostPressure * 0.75f));
+                    if (_turboBovClip != null && _turboBovClip.samples > 0)
+                    {
+                        try { _audioSource.PlayOneShot(_turboBovClip, Mathf.Clamp01(_boostPressure * 0.75f)); }
+                        catch (Exception ex) { Plugin.LogOnce(ex); }
+                    }
                     _boostPressure = 0f;
                     _lastBovTime = Time.time;
                 }
@@ -106,7 +114,11 @@ namespace ExtendedWhips.Effects
                 if (throttle < 0.05f && rpm > 2400f && gear > 1 && (Time.time - _lastJakeTime > 0.25f))
                 {
                     _audioSource.pitch = Mathf.Clamp(0.85f + (rpm / 3000f) * 0.3f, 0.85f, 1.3f);
-                    _audioSource.PlayOneShot(_jakeBrakeClip, 0.65f);
+                    if (_jakeBrakeClip != null && _jakeBrakeClip.samples > 0)
+                    {
+                        try { _audioSource.PlayOneShot(_jakeBrakeClip, 0.65f); }
+                        catch (Exception ex) { Plugin.LogOnce(ex); }
+                    }
                     _lastJakeTime = Time.time;
                 }
             }
@@ -116,65 +128,95 @@ namespace ExtendedWhips.Effects
         }
 
         // Procedural Supercharger whine synthesizer
-        private static AudioClip GenerateSuperchargerClip()
+        private static AudioClip? GenerateSuperchargerClip()
         {
-            int sampleRate = 44100;
-            int count = (int)(sampleRate * 0.08f);
-            float[] samples = new float[count];
-
-            for (int i = 0; i < count; i++)
+            try
             {
-                float t = (float)i / sampleRate;
-                float env = Mathf.Sin((float)i / count * Mathf.PI);
-                float f1 = Mathf.Sin(2f * Mathf.PI * 1400f * t);
-                float f2 = Mathf.Sin(2f * Mathf.PI * 2800f * t) * 0.4f;
-                samples[i] = (f1 + f2) * env * 0.5f;
-            }
+                int sampleRate = 44100;
+                int count = (int)(sampleRate * 0.08f);
+                float[] samples = new float[count];
 
-            var clip = AudioClip.Create("SuperchargerWhine", count, 1, sampleRate, false);
-            clip.SetData(samples, 0);
-            return clip;
+                for (int i = 0; i < count; i++)
+                {
+                    float t = (float)i / sampleRate;
+                    float env = Mathf.Sin((float)i / count * Mathf.PI);
+                    float f1 = Mathf.Sin(2f * Mathf.PI * 1400f * t);
+                    float f2 = Mathf.Sin(2f * Mathf.PI * 2800f * t) * 0.4f;
+                    samples[i] = (f1 + f2) * env * 0.5f;
+                }
+
+                var clip = AudioClip.Create("SuperchargerWhine", count, 1, sampleRate, false);
+                if (clip == null) return null;
+                if (!clip.SetData(samples, 0)) return null;
+                if (clip.samples <= 0) return null;
+                return clip;
+            }
+            catch (Exception ex)
+            {
+                Plugin.LogOnce(ex);
+                return null;
+            }
         }
 
         // Procedural Turbo Blow-Off Valve (BOV) flutter & sneeze
-        private static AudioClip GenerateBovFlutterClip()
+        private static AudioClip? GenerateBovFlutterClip()
         {
-            int sampleRate = 44100;
-            int count = (int)(sampleRate * 0.28f);
-            float[] samples = new float[count];
-
-            for (int i = 0; i < count; i++)
+            try
             {
-                float t = (float)i / sampleRate;
-                float env = Mathf.Exp(-t * 12f);
-                float noise = (UnityEngine.Random.value * 2f - 1f);
-                float flutter = Mathf.Sin(2f * Mathf.PI * 24f * t); // Flutter modulation (24 Hz)
-                samples[i] = noise * env * (0.6f + 0.4f * flutter) * 0.65f;
-            }
+                int sampleRate = 44100;
+                int count = (int)(sampleRate * 0.28f);
+                float[] samples = new float[count];
 
-            var clip = AudioClip.Create("TurboBovFlutter", count, 1, sampleRate, false);
-            clip.SetData(samples, 0);
-            return clip;
+                for (int i = 0; i < count; i++)
+                {
+                    float t = (float)i / sampleRate;
+                    float env = Mathf.Exp(-t * 12f);
+                    float noise = (UnityEngine.Random.value * 2f - 1f);
+                    float flutter = Mathf.Sin(2f * Mathf.PI * 24f * t); // Flutter modulation (24 Hz)
+                    samples[i] = noise * env * (0.6f + 0.4f * flutter) * 0.65f;
+                }
+
+                var clip = AudioClip.Create("TurboBovFlutter", count, 1, sampleRate, false);
+                if (clip == null) return null;
+                if (!clip.SetData(samples, 0)) return null;
+                if (clip.samples <= 0) return null;
+                return clip;
+            }
+            catch (Exception ex)
+            {
+                Plugin.LogOnce(ex);
+                return null;
+            }
         }
 
         // Procedural Jake Brake compression staccato
-        private static AudioClip GenerateJakeBrakeClip()
+        private static AudioClip? GenerateJakeBrakeClip()
         {
-            int sampleRate = 44100;
-            int count = (int)(sampleRate * 0.15f);
-            float[] samples = new float[count];
-
-            for (int i = 0; i < count; i++)
+            try
             {
-                float t = (float)i / sampleRate;
-                float env = Mathf.Exp(-t * 28f);
-                float chug = Mathf.Sin(2f * Mathf.PI * 65f * t) * 0.8f + (UnityEngine.Random.value * 2f - 1f) * 0.4f;
-                samples[i] = chug * env * 0.8f;
-            }
+                int sampleRate = 44100;
+                int count = (int)(sampleRate * 0.15f);
+                float[] samples = new float[count];
 
-            var clip = AudioClip.Create("JakeBrakeChug", count, 1, sampleRate, false);
-            clip.SetData(samples, 0);
-            return clip;
+                for (int i = 0; i < count; i++)
+                {
+                    float t = (float)i / sampleRate;
+                    float env = Mathf.Exp(-t * 28f);
+                    float chug = Mathf.Sin(2f * Mathf.PI * 65f * t) * 0.8f + (UnityEngine.Random.value * 2f - 1f) * 0.4f;
+                    samples[i] = chug * env * 0.8f;
+                }
+
+                var clip = AudioClip.Create("JakeBrakeChug", count, 1, sampleRate, false);
+                if (clip == null) return null;
+                if (!clip.SetData(samples, 0)) return null;
+                if (clip.samples <= 0) return null;
+                return clip;
+            }
+            catch (Exception ex)
+            {
+                Plugin.LogOnce(ex);
+                return null;
+            }
         }
     }
 }

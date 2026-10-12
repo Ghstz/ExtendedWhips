@@ -61,7 +61,10 @@ namespace ExtendedWhips.Effects
             _sirenAudioSource.volume = 0.85f;
 
             if (_sirenClip == null) _sirenClip = GenerateSirenAudioClip();
-            _sirenAudioSource.clip = _sirenClip;
+            if (_sirenClip != null && _sirenClip.samples > 0)
+            {
+                _sirenAudioSource.clip = _sirenClip;
+            }
         }
 
         private static void CreateStrobe(Transform parent, Vector3 localPos, Color color, int phaseIndex)
@@ -94,8 +97,23 @@ namespace ExtendedWhips.Effects
             IsSirenActive = !IsSirenActive;
             if (_sirenAudioSource != null)
             {
-                if (IsSirenActive) _sirenAudioSource.Play();
-                else _sirenAudioSource.Stop();
+                if (IsSirenActive)
+                {
+                    if (_sirenAudioSource.clip != null && _sirenAudioSource.clip.samples > 0)
+                    {
+                        try { _sirenAudioSource.Play(); }
+                        catch (Exception ex) { Plugin.LogOnce(ex); IsSirenActive = false; }
+                    }
+                    else
+                    {
+                        IsSirenActive = false;
+                    }
+                }
+                else
+                {
+                    try { _sirenAudioSource.Stop(); }
+                    catch (Exception ex) { Plugin.LogOnce(ex); }
+                }
             }
         }
 
@@ -131,28 +149,38 @@ namespace ExtendedWhips.Effects
             }
         }
 
-        private static AudioClip GenerateSirenAudioClip()
+        private static AudioClip? GenerateSirenAudioClip()
         {
-            int sampleRate = 44100;
-            float duration = 2.0f; // 2 second wail loop
-            int sampleCount = Mathf.RoundToInt(sampleRate * duration);
-            float[] samples = new float[sampleCount];
-
-            for (int i = 0; i < sampleCount; i++)
+            try
             {
-                float t = (float)i / sampleRate;
-                // Dual tone wail oscillating between 650 Hz and 1150 Hz
-                float sweep = (Mathf.Sin(t * Mathf.PI * 1.5f) + 1f) * 0.5f;
-                float freq = Mathf.Lerp(650f, 1150f, sweep);
-                float val = Mathf.Sin(t * Mathf.PI * 2f * freq);
-                // Mild harmonic overtone
-                val += 0.35f * Mathf.Sin(t * Mathf.PI * 4f * freq);
-                samples[i] = Mathf.Clamp(val * 0.45f, -1f, 1f);
-            }
+                int sampleRate = 44100;
+                float duration = 2.0f; // 2 second wail loop
+                int sampleCount = Mathf.RoundToInt(sampleRate * duration);
+                float[] samples = new float[sampleCount];
 
-            var clip = AudioClip.Create("EmergencySirenWail", sampleCount, 1, sampleRate, false);
-            clip.SetData(samples, 0);
-            return clip;
+                for (int i = 0; i < sampleCount; i++)
+                {
+                    float t = (float)i / sampleRate;
+                    // Dual tone wail oscillating between 650 Hz and 1150 Hz
+                    float sweep = (Mathf.Sin(t * Mathf.PI * 1.5f) + 1f) * 0.5f;
+                    float freq = Mathf.Lerp(650f, 1150f, sweep);
+                    float val = Mathf.Sin(t * Mathf.PI * 2f * freq);
+                    // Mild harmonic overtone
+                    val += 0.35f * Mathf.Sin(t * Mathf.PI * 4f * freq);
+                    samples[i] = Mathf.Clamp(val * 0.45f, -1f, 1f);
+                }
+
+                var clip = AudioClip.Create("EmergencySirenWail", sampleCount, 1, sampleRate, false);
+                if (clip == null) return null;
+                if (!clip.SetData(samples, 0)) return null;
+                if (clip.samples <= 0) return null;
+                return clip;
+            }
+            catch (Exception ex)
+            {
+                Plugin.LogOnce(ex);
+                return null;
+            }
         }
     }
 }

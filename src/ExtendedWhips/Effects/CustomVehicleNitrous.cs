@@ -87,10 +87,11 @@ namespace ExtendedWhips.Effects
                     if (ps != null) ps.Emit(3);
                 }
 
-                if (_audioSource != null && _purgeClip != null && !_audioSource.isPlaying)
+                if (_audioSource != null && _purgeClip != null && _purgeClip.samples > 0 && !_audioSource.isPlaying)
                 {
                     _audioSource.pitch = UnityEngine.Random.Range(1.1f, 1.35f);
-                    _audioSource.PlayOneShot(_purgeClip, 0.75f);
+                    try { _audioSource.PlayOneShot(_purgeClip, 0.75f); }
+                    catch (Exception ex) { Plugin.LogOnce(ex); }
                 }
             }
             else
@@ -163,22 +164,32 @@ namespace ExtendedWhips.Effects
             BottlePsi = MaxPsi;
         }
 
-        private static AudioClip GeneratePurgeHissClip()
+        private static AudioClip? GeneratePurgeHissClip()
         {
-            int sampleRate = 44100;
-            int count = (int)(sampleRate * 0.18f);
-            float[] samples = new float[count];
-
-            for (int i = 0; i < count; i++)
+            try
             {
-                float t = (float)i / sampleRate;
-                float env = Mathf.Exp(-t * 15f);
-                samples[i] = (UnityEngine.Random.value * 2f - 1f) * env * 0.7f;
-            }
+                int sampleRate = 44100;
+                int count = (int)(sampleRate * 0.18f);
+                float[] samples = new float[count];
 
-            var clip = AudioClip.Create("NitrousPurgeHiss", count, 1, sampleRate, false);
-            clip.SetData(samples, 0);
-            return clip;
+                for (int i = 0; i < count; i++)
+                {
+                    float t = (float)i / sampleRate;
+                    float env = Mathf.Exp(-t * 15f);
+                    samples[i] = (UnityEngine.Random.value * 2f - 1f) * env * 0.7f;
+                }
+
+                var clip = AudioClip.Create("NitrousPurgeHiss", count, 1, sampleRate, false);
+                if (clip == null) return null;
+                if (!clip.SetData(samples, 0)) return null;
+                if (clip.samples <= 0) return null;
+                return clip;
+            }
+            catch (Exception ex)
+            {
+                Plugin.LogOnce(ex);
+                return null;
+            }
         }
     }
 }

@@ -251,12 +251,12 @@ Located in **Tab 6 [TELEMETRY]**:
 
 ---
 
-## 20. In-Cabin Bluetooth Stereo & Spatial Filtering
+## 20. In-Cabin Bluetooth Stereo & Spatial Acoustic Simulation
 
 * Scans `BepInEx/plugins/ExtendedWhips/Music/` for `.mp3`, `.wav`, or `.ogg` tracks (includes procedural chill synthwave fallback).
-* **Spatial Acoustic Filtering:**
-  * In cockpit view (`[C]`), audio plays with uncompressed frequency response (22,000 Hz) and deep bass.
-  * In exterior third-person view, dynamic low-pass filtering attenuates high frequencies down to 1,600 Hz, simulating muffled audio leaking out through glass windows.
+* **Spatial Acoustic Simulation:**
+  * In cockpit view (`[C]`), audio plays directly inside the cabin at full volume with intimate 2D/3D spatial balance.
+  * In exterior third-person view, audio dynamically attenuates and expands spatial falloff, realistically simulating sound muffled and leaking through the vehicle's windows and sheet metal.
 * Live track title readout on the telemetry HUD overlay.
 
 ---

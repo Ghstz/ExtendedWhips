@@ -617,15 +617,15 @@ namespace ExtendedWhips.Models
                 rootObj.transform.localPosition = new Vector3(spec.CenterOffsetX, spec.HeightOffset, spec.CenterOffsetZ);
                 rootObj.transform.localRotation = Quaternion.Euler(0f, spec.RotationY, 0f);
 
-                // Initialize Lights, Exhaust FX, Audio Synthesizer, Nitrous, Surface FX, Strobes, and Stereo
-                CustomVehicleLights.InitializeLights(asset);
-                CustomVehicleExhaust.InitializeExhaust(asset);
-                CustomVehicleAudio.InitializeAudio(asset);
-                CustomVehicleNitrous.InitializeNitrous(asset);
-                CustomSurfaceFX.InitializeSurfaceFX(asset);
-                CustomEmergencyLighting.InitializeEmergencyLighting(asset);
-                InCabinStereo.InitializeStereo(asset);
-                EvPowertrainSystem.InitializeEvAudio(asset);
+                // Initialize Lights, Exhaust FX, Audio Synthesizer, Nitrous, Surface FX, Strobes, and Stereo (isolated failure protection)
+                try { CustomVehicleLights.InitializeLights(asset); } catch (Exception ex) { Plugin.LogMsg($"[GlbVehicleLoader] Failed to initialize lights: {ex}"); }
+                try { CustomVehicleExhaust.InitializeExhaust(asset); } catch (Exception ex) { Plugin.LogMsg($"[GlbVehicleLoader] Failed to initialize exhaust: {ex}"); }
+                try { CustomVehicleAudio.InitializeAudio(asset); } catch (Exception ex) { Plugin.LogMsg($"[GlbVehicleLoader] Failed to initialize audio: {ex}"); }
+                try { CustomVehicleNitrous.InitializeNitrous(asset); } catch (Exception ex) { Plugin.LogMsg($"[GlbVehicleLoader] Failed to initialize nitrous: {ex}"); }
+                try { CustomSurfaceFX.InitializeSurfaceFX(asset); } catch (Exception ex) { Plugin.LogMsg($"[GlbVehicleLoader] Failed to initialize surface FX: {ex}"); }
+                try { CustomEmergencyLighting.InitializeEmergencyLighting(asset); } catch (Exception ex) { Plugin.LogMsg($"[GlbVehicleLoader] Failed to initialize emergency lighting: {ex}"); }
+                try { InCabinStereo.InitializeStereo(asset); } catch (Exception ex) { Plugin.LogMsg($"[GlbVehicleLoader] Failed to initialize stereo: {ex}"); }
+                try { EvPowertrainSystem.InitializeEvAudio(asset); } catch (Exception ex) { Plugin.LogMsg($"[GlbVehicleLoader] Failed to initialize EV audio: {ex}"); }
 
                 Plugin.LogMsg($"[GlbVehicleLoader] Successfully loaded '{spec.DisplayName}' (Body: {asset.BodyObjects.Count}, FL: {asset.FrontLeftWheels.Count}, Calipers: {asset.FrontLeftCalipers.Count + asset.FrontRightCalipers.Count}, Doors: {asset.LeftDoorTransforms.Count + asset.RightDoorTransforms.Count}, Hood: {asset.HoodTransforms.Count}).");
                 return asset;
