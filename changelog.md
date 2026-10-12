@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.3] - 2026-10-12
+
+### Visual Alignment, Wheel Classification & HDRP Material Fixes
+Comprehensive physics and rendering hotfix resolving missing pink particle textures, frozen wheel rims, vehicle mesh offsets, drift gyro over-correction, and text field errors.
+
+#### Fixed
+- **Pink Missing Textures (HDRP Compatibility):** Dynamic particle emitters in `CustomSurfaceFX.cs` (burnout smoke & dirt roostertails), `CustomVehicleExhaust.cs` (exhaust smoke & afterfire flames), and `CustomVehicleNitrous.cs` (CO2 purge jets) now dynamically sample existing scene particle materials or initialize with transparent `HDRP/Lit` materials instead of leaving `ParticleSystemRenderer.sharedMaterial` unassigned.
+- **Dynamic Skidmark Shaders:** `DynamicSkidmarks.cs` now clones valid HDRP particle shaders instead of querying unsupported Built-In pipeline shaders (`Sprites/Default` / `Standard`).
+- **Wheel Hierarchy & Quadrant Classification:** In `GlbVehicleLoader.cs`, wheel and caliper detection now traverses GLTF visual parent hierarchies. All detected wheels and calipers are geometrically partitioned into `FrontLeft`, `FrontRight`, `RearLeft`, and `RearRight` relative to vehicle-aligned bounding midpoints, resolving the `FL: 0` bug on the Cuda, Blazer, Sierra HD, and Raptor R.
+- **Wheel Rotation & Spin Decoupling:** `VehicleReskinManager.UpdateWheelQuadrant` now preserves GLTF rest rotations (`steerRot * restRot * spinRot`) and inverts spin direction on right-side wheels, eliminating wobbling and gimbal lock.
+- **Model Offsets & Alignment:**
+  - GMC Sierra 2500HD: Authoring Y-rotation corrected from `180°` to `28.68°` with centered root offset (`X: 2.37m`, `Z: -0.37m`), perfectly aligning the body with the chassis colliders.
+  - 1978 Chevrolet K5 Blazer: Lowered `heightOffset` from `0.49m` to `0.10m`, eliminating suspension gap.
+- **Drift Gyro Damping:** In `DriftAssistSystem.cs`, counter-steer torque is now damped by vehicle yaw angular velocity, preventing violent pendulum snap-oversteer and uncontrolled spinouts.
+- **IMGUI TextEditor Guard:** Wrapped `GUILayout.TextField` for tune share codes in a guarded block, gracefully preventing native Unity exceptions caused by stripped IL2CPP `TextEditor` methods.
+
+---
+
 ## [2.1.2] - 2026-10-12
 
 ### Vehicle Spawn Crash Fix & Audio Fault-Tolerance

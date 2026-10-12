@@ -37,13 +37,18 @@ namespace ExtendedWhips.Tuning
 
             if (Mathf.Abs(driftAngle) > 8.0f)
             {
-                // Counter-steer stabilizing torque
+                // Counter-steer stabilizing torque with angular velocity damping to prevent pendulum snaps
                 float sign = Mathf.Sign(driftAngle);
-                float magnitude = Mathf.Clamp01((Mathf.Abs(driftAngle) - 8.0f) / 45.0f);
-                float torqueAmount = -sign * magnitude * GyroAssistanceStrength * 1800f;
-                // Forces accumulate until the next physics step; normalise to per-step (0 when timeScale == 0)
-                torqueAmount *= Time.deltaTime / Mathf.Max(0.001f, Time.fixedDeltaTime);
+                float magnitude = Mathf.Clamp01((Mathf.Abs(driftAngle) - 8.0f) / 40.0f);
+                float baseTorque = -sign * magnitude * GyroAssistanceStrength * 850f;
 
+                // Dampen yaw angular velocity so it doesn't violently snap back
+                float yawVel = v.cachedRigidbody.angularVelocity.y;
+                float damping = -yawVel * 300f * GyroAssistanceStrength;
+                float torqueAmount = Mathf.Clamp(baseTorque + damping, -1200f, 1200f);
+
+                // Normalise force accumulation per step
+                torqueAmount *= Time.deltaTime / Mathf.Max(0.001f, Time.fixedDeltaTime);
                 v.cachedRigidbody.AddTorque(Vector3.up * torqueAmount, ForceMode.Force);
             }
         }

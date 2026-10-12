@@ -21,8 +21,9 @@ namespace ExtendedWhips.Models
         public List<Transform> RearLeftCalipers { get; set; } = new();
         public List<Transform> RearRightCalipers { get; set; } = new();
 
-        // Initial Rest Positions of Wheels
+        // Initial Rest Positions & Rotations of Wheels
         public Dictionary<Transform, Vector3> WheelRestLocalPositions { get; set; } = new();
+        public Dictionary<Transform, Quaternion> WheelRestLocalRotations { get; set; } = new();
 
         // Steering Wheel (syncs with in-game driver hands)
         public List<Transform> SteeringWheelTransforms { get; set; } = new();

@@ -31,17 +31,25 @@ namespace ExtendedWhips.Effects
 
             if (_skidMaterial == null)
             {
-                // Create an unlit dark rubber material
-                var shader = Shader.Find("Sprites/Default") ?? Shader.Find("Standard") ?? Shader.Find("Particles/Standard Unlit");
-                if (shader == null)
+                var baseMat = CustomSurfaceFX.GetParticleMaterial();
+                if (baseMat != null)
                 {
-                    Plugin.LogMsg("[ExtendedWhips] No usable shader for skidmarks; skidmarks disabled.");
-                    return;
+                    _skidMaterial = new Material(baseMat)
+                    {
+                        color = new Color(0.12f, 0.12f, 0.12f, 0.75f)
+                    };
                 }
-                _skidMaterial = new Material(shader)
+                else
                 {
-                    color = new Color(0.12f, 0.12f, 0.12f, 0.75f)
-                };
+                    var shader = Shader.Find("HDRP/Lit") ?? Shader.Find("Standard");
+                    if (shader != null)
+                    {
+                        _skidMaterial = new Material(shader)
+                        {
+                            color = new Color(0.12f, 0.12f, 0.12f, 0.75f)
+                        };
+                    }
+                }
             }
 
             foreach (var w in wheels)

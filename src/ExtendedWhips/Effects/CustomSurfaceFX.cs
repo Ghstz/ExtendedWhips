@@ -38,14 +38,60 @@ namespace ExtendedWhips.Effects
             }
         }
 
+        private static Material? _cachedParticleMat;
+
+        public static Material GetParticleMaterial()
+        {
+            if (_cachedParticleMat != null) return _cachedParticleMat;
+
+            // Search for existing particle renderer in scene to clone its working HDRP/particle material
+            var existingRenderers = UnityEngine.Object.FindObjectsOfType<ParticleSystemRenderer>();
+            foreach (var rend in existingRenderers)
+            {
+                if (rend != null && rend.sharedMaterial != null && rend.sharedMaterial.shader != null)
+                {
+                    string sName = rend.sharedMaterial.shader.name;
+                    if (!sName.Contains("Error") && !sName.Contains("InternalError"))
+                    {
+                        _cachedParticleMat = new Material(rend.sharedMaterial);
+                        return _cachedParticleMat;
+                    }
+                }
+            }
+
+            // Fallback: try HDRP and legacy shaders
+            var shader = Shader.Find("HDRP/Lit") ??
+                         Shader.Find("Legacy Shaders/Particles/Alpha Blended") ??
+                         Shader.Find("Standard");
+
+            if (shader != null)
+            {
+                _cachedParticleMat = new Material(shader);
+                if (_cachedParticleMat.HasProperty("_SurfaceType")) _cachedParticleMat.SetFloat("_SurfaceType", 1f); // Transparent in HDRP
+                if (_cachedParticleMat.HasProperty("_BlendMode")) _cachedParticleMat.SetFloat("_BlendMode", 0f);
+                if (_cachedParticleMat.HasProperty("_ZWrite")) _cachedParticleMat.SetFloat("_ZWrite", 0f);
+            }
+            else
+            {
+                _cachedParticleMat = new Material(Shader.GetGlobalFloat("_SurfaceType") > 0 ? Shader.Find("Standard") : Shader.Find("Standard"));
+            }
+
+            return _cachedParticleMat;
+        }
+
         private static void CreateWheelFX(Transform parent, Vector3 localPos)
         {
+            var pMat = GetParticleMaterial();
+
             // 1. Burnout Rubber Smoke Emitter
             var smokeObj = new GameObject("BurnoutSmokeEmitter");
             smokeObj.transform.SetParent(parent, false);
             smokeObj.transform.localPosition = localPos;
 
             var smokePs = smokeObj.AddComponent<ParticleSystem>();
+            var sRend = smokeObj.GetComponent<ParticleSystemRenderer>();
+            if (sRend != null && pMat != null) sRend.sharedMaterial = pMat;
+
             var sMain = smokePs.main;
             sMain.startLifetime = 1.4f;
             sMain.startSpeed = 2.5f;
@@ -65,6 +111,9 @@ namespace ExtendedWhips.Effects
             roostObj.transform.localRotation = Quaternion.Euler(-25f, 180f, 0f); // Spray backwards and up
 
             var roostPs = roostObj.AddComponent<ParticleSystem>();
+            var rRend = roostObj.GetComponent<ParticleSystemRenderer>();
+            if (rRend != null && pMat != null) rRend.sharedMaterial = pMat;
+
             var rMain = roostPs.main;
             rMain.startLifetime = 0.45f;
             rMain.startSpeed = 9.0f;

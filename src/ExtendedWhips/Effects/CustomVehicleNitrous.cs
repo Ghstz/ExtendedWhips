@@ -57,6 +57,10 @@ namespace ExtendedWhips.Effects
             jetObj.transform.localRotation = localRot;
 
             var ps = jetObj.AddComponent<ParticleSystem>();
+            var pRend = jetObj.GetComponent<ParticleSystemRenderer>();
+            var pMat = CustomSurfaceFX.GetParticleMaterial();
+            if (pRend != null && pMat != null) pRend.sharedMaterial = pMat;
+
             var main = ps.main;
             main.startLifetime = 0.22f;
             main.startSpeed = 12.0f;

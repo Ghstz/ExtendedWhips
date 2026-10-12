@@ -45,7 +45,7 @@ namespace ExtendedWhips.Models
             // Trucks & 4x4s
             new GlbVehicleModel("blazer78", "1978 Chevrolet K5 Blazer", "1978_chevrolet_blazer_k5_cheyenne.glb", 
                 VehicleTypeCategory.Offroad4x4, "Cheyenne K5 Full-Size 4x4 Classic", 
-                scale: 93.60f, heightOffset: 0.49f, rotY: 0.0f, wheelScale: 1.15f, preset: "OffroadLifted", 
+                scale: 93.60f, heightOffset: 0.10f, rotY: 0.0f, wheelScale: 1.15f, preset: "OffroadLifted", 
                 driverY: 0.0f, 
                 cockpitCam: new Vector3(-0.45f, 1.60f, 0.10f),
                 exhausts: new List<Vector3> { new Vector3(-0.85f, 0.35f, -2.10f), new Vector3(0.85f, 0.35f, -2.10f) }),
@@ -73,8 +73,8 @@ namespace ExtendedWhips.Models
 
             new GlbVehicleModel("sierra_hd", "GMC Sierra 2500HD", "gmc_sierra_hd2500.glb", 
                 VehicleTypeCategory.Truck, "Heavy Duty Duramax Commercial Hauler", 
-                scale: 0.403f, heightOffset: -0.11f, rotY: 180.0f, wheelScale: 1.12f, preset: "OffroadLifted", 
-                offsetX: 1.82f, offsetZ: -1.63f, driverY: 0.0f, 
+                scale: 0.403f, heightOffset: -0.11f, rotY: 28.68f, wheelScale: 1.12f, preset: "OffroadLifted", 
+                offsetX: 2.37f, offsetZ: -0.37f, driverY: 0.0f, 
                 cockpitCam: new Vector3(-0.45f, 1.75f, 0.20f),
                 exhausts: new List<Vector3> { new Vector3(0.82f, 0.42f, -2.85f) }),
 
@@ -345,6 +345,9 @@ namespace ExtendedWhips.Models
                     materials[i] = uMat;
                 }
 
+                var pendingWheels = new List<(Transform transform, Vector3 localPos)>();
+                var pendingCalipers = new List<(Transform transform, Vector3 localPos)>();
+
                 // Process nodes & meshes
                 foreach (var node in gltf.LogicalNodes)
                 {
@@ -372,12 +375,37 @@ namespace ExtendedWhips.Models
                         }
                     }
 
+                    // Check self and all ancestor nodes for wheel/caliper signatures
                     bool isCaliper = lowerNode.Contains("caliper") || lowerNode.Contains("brake") || lowerNode.Contains("pad") ||
                                     lowerMesh.Contains("caliper") || lowerMesh.Contains("brake") || matIsCaliper;
 
                     bool isWheel = (lowerNode.Contains("wheel") || lowerNode.Contains("tire") || lowerNode.Contains("tyre") ||
                                    lowerNode.Contains("rim") || lowerMesh.Contains("wheel") || lowerMesh.Contains("tire") ||
                                    lowerMesh.Contains("tyre") || lowerMesh.Contains("rim") || matIsWheel) || isCaliper;
+
+                    // Inspect GLTF node hierarchy ancestors for wheel or caliper groupings
+                    var pCurr = node.VisualParent;
+                    while (pCurr != null)
+                    {
+                        string pName = (pCurr.Name ?? "").ToLowerInvariant();
+                        if (pName.Contains("caliper") || pName.Contains("brake") || pName.Contains("pad"))
+                        {
+                            isCaliper = true;
+                            isWheel = true;
+                        }
+                        if (pName.Contains("wheel") || pName.Contains("tire") || pName.Contains("tyre") || pName.Contains("rim"))
+                        {
+                            isWheel = true;
+                        }
+                        pCurr = pCurr.VisualParent;
+                    }
+
+                    // Special case for spy-hypersport superbike wheels
+                    if (spec.Id == "hypersport" && (node.LogicalIndex == 2 || node.LogicalIndex == 25))
+                    {
+                        isWheel = true;
+                        isCaliper = false;
+                    }
 
                     bool isSteeringWheel = lowerNode.Contains("steer") || lowerMesh.Contains("steer") || lowerNode.Contains("volant") || lowerNode.Contains("handlebar");
                     bool isSpoiler = lowerNode.Contains("spoiler") || lowerMesh.Contains("spoiler") || lowerNode.Contains("wing") || lowerMesh.Contains("wing") || lowerNode.Contains("airbrake");
@@ -432,41 +460,19 @@ namespace ExtendedWhips.Models
                         nodeObj.transform.localRotation = Quaternion.identity;
                         nodeObj.transform.localScale = Vector3.one;
 
-                        // Store rest position for real suspension spring travel
+                        // Store rest position and rotation for suspension travel and wheel spin
                         asset.WheelRestLocalPositions[nodeObj.transform] = nodeObj.transform.localPosition;
-
-                        float unityX = -centerPivot.X;
-                        float unityZ = centerPivot.Z;
+                        asset.WheelRestLocalRotations[nodeObj.transform] = nodeObj.transform.localRotation;
+                        asset.WheelObjects.Add(nodeObj);
 
                         if (isCaliper)
                         {
-                            // Separate Brake Calipers: steer without spinning
-                            if (unityZ > 0.05f)
-                            {
-                                if (unityX < 0f) asset.FrontLeftCalipers.Add(nodeObj.transform);
-                                else asset.FrontRightCalipers.Add(nodeObj.transform);
-                            }
-                            else
-                            {
-                                if (unityX < 0f) asset.RearLeftCalipers.Add(nodeObj.transform);
-                                else asset.RearRightCalipers.Add(nodeObj.transform);
-                            }
+                            pendingCalipers.Add((nodeObj.transform, nodeObj.transform.localPosition));
                         }
                         else
                         {
-                            // Spinning Rims & Tires
-                            if (unityZ > 0.05f)
-                            {
-                                if (unityX < 0f) asset.FrontLeftWheels.Add(nodeObj.transform);
-                                else asset.FrontRightWheels.Add(nodeObj.transform);
-                            }
-                            else
-                            {
-                                if (unityX < 0f) asset.RearLeftWheels.Add(nodeObj.transform);
-                                else asset.RearRightWheels.Add(nodeObj.transform);
-                            }
+                            pendingWheels.Add((nodeObj.transform, nodeObj.transform.localPosition));
                         }
-                        asset.WheelObjects.Add(nodeObj);
                     }
                     else
                     {
@@ -608,6 +614,103 @@ namespace ExtendedWhips.Models
                         else if (fallbackMat != null)
                         {
                             mr.sharedMaterial = fallbackMat;
+                        }
+                    }
+                }
+
+                // Partition detected wheels into Front/Rear and Left/Right using relative bounding midpoints
+                if (pendingWheels.Count > 0)
+                {
+                    float minZ = float.MaxValue, maxZ = float.MinValue;
+                    float minX = float.MaxValue, maxX = float.MinValue;
+
+                    // If model has authored RotationY (like Sierra HD), project points into vehicle-aligned axes
+                    float rad = spec.RotationY * Mathf.Deg2Rad;
+                    float cosY = Mathf.Cos(rad);
+                    float sinY = Mathf.Sin(rad);
+
+                    var alignedCoords = new List<Vector2>(); // (alignedX, alignedZ)
+                    for (int i = 0; i < pendingWheels.Count; i++)
+                    {
+                        var p = pendingWheels[i].localPos;
+                        float ax = p.x * cosY + p.z * sinY;
+                        float az = -p.x * sinY + p.z * cosY;
+                        alignedCoords.Add(new Vector2(ax, az));
+
+                        if (az < minZ) minZ = az;
+                        if (az > maxZ) maxZ = az;
+                        if (ax < minX) minX = ax;
+                        if (ax > maxX) maxX = ax;
+                    }
+
+                    float midZ = (minZ + maxZ) / 2f;
+                    float midX = (minX + maxX) / 2f;
+
+                    for (int i = 0; i < pendingWheels.Count; i++)
+                    {
+                        var t = pendingWheels[i].transform;
+                        var ac = alignedCoords[i];
+
+                        bool isFront = (ac.y > midZ);
+                        bool isLeft = (ac.x < midX);
+
+                        if (isFront)
+                        {
+                            if (isLeft) asset.FrontLeftWheels.Add(t);
+                            else asset.FrontRightWheels.Add(t);
+                        }
+                        else
+                        {
+                            if (isLeft) asset.RearLeftWheels.Add(t);
+                            else asset.RearRightWheels.Add(t);
+                        }
+                    }
+                }
+
+                // Partition detected calipers similarly
+                if (pendingCalipers.Count > 0)
+                {
+                    float rad = spec.RotationY * Mathf.Deg2Rad;
+                    float cosY = Mathf.Cos(rad);
+                    float sinY = Mathf.Sin(rad);
+
+                    float minZ = float.MaxValue, maxZ = float.MinValue;
+                    float minX = float.MaxValue, maxX = float.MinValue;
+                    var alignedCoords = new List<Vector2>();
+
+                    for (int i = 0; i < pendingCalipers.Count; i++)
+                    {
+                        var p = pendingCalipers[i].localPos;
+                        float ax = p.x * cosY + p.z * sinY;
+                        float az = -p.x * sinY + p.z * cosY;
+                        alignedCoords.Add(new Vector2(ax, az));
+
+                        if (az < minZ) minZ = az;
+                        if (az > maxZ) maxZ = az;
+                        if (ax < minX) minX = ax;
+                        if (ax > maxX) maxX = ax;
+                    }
+
+                    float midZ = (minZ + maxZ) / 2f;
+                    float midX = (minX + maxX) / 2f;
+
+                    for (int i = 0; i < pendingCalipers.Count; i++)
+                    {
+                        var t = pendingCalipers[i].transform;
+                        var ac = alignedCoords[i];
+
+                        bool isFront = (ac.y > midZ);
+                        bool isLeft = (ac.x < midX);
+
+                        if (isFront)
+                        {
+                            if (isLeft) asset.FrontLeftCalipers.Add(t);
+                            else asset.FrontRightCalipers.Add(t);
+                        }
+                        else
+                        {
+                            if (isLeft) asset.RearLeftCalipers.Add(t);
+                            else asset.RearRightCalipers.Add(t);
                         }
                     }
                 }

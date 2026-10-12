@@ -46,6 +46,10 @@ namespace ExtendedWhips.Effects
 
                 // 1. Smoke Particle System
                 var smokePs = tipObj.AddComponent<ParticleSystem>();
+                var sRend = tipObj.GetComponent<ParticleSystemRenderer>();
+                var pMat = CustomSurfaceFX.GetParticleMaterial();
+                if (sRend != null && pMat != null) sRend.sharedMaterial = pMat;
+
                 var main = smokePs.main;
                 main.startLifetime = 1.0f;
                 main.startSpeed = 3.5f;
@@ -66,6 +70,9 @@ namespace ExtendedWhips.Effects
                 flameObj.transform.localRotation = Quaternion.identity;
 
                 var flamePs = flameObj.AddComponent<ParticleSystem>();
+                var fRend = flameObj.GetComponent<ParticleSystemRenderer>();
+                if (fRend != null && pMat != null) fRend.sharedMaterial = pMat;
+
                 var fMain = flamePs.main;
                 fMain.startLifetime = 0.08f;
                 fMain.startSpeed = 8.0f;

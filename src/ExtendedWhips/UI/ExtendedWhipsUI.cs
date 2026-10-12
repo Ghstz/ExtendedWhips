@@ -1145,7 +1145,15 @@ namespace ExtendedWhips.UI
                     _shareCodeInput = code;
                     ShowToast("SHARE CODE", $"Generated Tune Code: {code}");
                 }
-                _shareCodeInput = GUILayout.TextField(_shareCodeInput, GUILayout.Width(160), GUILayout.Height(24));
+                try
+                {
+                    _shareCodeInput = GUILayout.TextField(_shareCodeInput, GUILayout.Width(160), GUILayout.Height(24));
+                }
+                catch (System.Exception ex_)
+                {
+                    Plugin.LogOnce(ex_);
+                    GUILayout.Label(_shareCodeInput, GUILayout.Width(160), GUILayout.Height(24));
+                }
                 GUI.backgroundColor = new Color(0.1f, 0.7f, 0.4f);
                 if (GUILayout.Button("[Apply Code]", GUILayout.Width(110), GUILayout.Height(24)))
                 {

@@ -302,16 +302,16 @@ namespace ExtendedWhips.Hooks
             float spinRR = wheelRR != null ? wheelRR.angularPosition * Mathf.Rad2Deg : 0f;
 
             // 1. Spinning Rims & Tires (Spin + Steer + Dynamic Suspension Travel)
-            UpdateWheelQuadrant(asset.FrontLeftWheels, asset.WheelRestLocalPositions, totalFL_Y, spinFL, steerFL);
-            UpdateWheelQuadrant(asset.FrontRightWheels, asset.WheelRestLocalPositions, totalFR_Y, spinFR, steerFR);
-            UpdateWheelQuadrant(asset.RearLeftWheels, asset.WheelRestLocalPositions, totalRL_Y, spinRL, 0f);
-            UpdateWheelQuadrant(asset.RearRightWheels, asset.WheelRestLocalPositions, totalRR_Y, spinRR, 0f);
+            UpdateWheelQuadrant(asset.FrontLeftWheels, asset.WheelRestLocalPositions, asset.WheelRestLocalRotations, totalFL_Y, spinFL, steerFL, isRightSide: false);
+            UpdateWheelQuadrant(asset.FrontRightWheels, asset.WheelRestLocalPositions, asset.WheelRestLocalRotations, totalFR_Y, spinFR, steerFR, isRightSide: true);
+            UpdateWheelQuadrant(asset.RearLeftWheels, asset.WheelRestLocalPositions, asset.WheelRestLocalRotations, totalRL_Y, spinRL, 0f, isRightSide: false);
+            UpdateWheelQuadrant(asset.RearRightWheels, asset.WheelRestLocalPositions, asset.WheelRestLocalRotations, totalRR_Y, spinRR, 0f, isRightSide: true);
 
             // 2. Fixed Brake Calipers (Steer only, NO spin!)
-            UpdateWheelQuadrant(asset.FrontLeftCalipers, asset.WheelRestLocalPositions, totalFL_Y, 0f, steerFL);
-            UpdateWheelQuadrant(asset.FrontRightCalipers, asset.WheelRestLocalPositions, totalFR_Y, 0f, steerFR);
-            UpdateWheelQuadrant(asset.RearLeftCalipers, asset.WheelRestLocalPositions, totalRL_Y, 0f, 0f);
-            UpdateWheelQuadrant(asset.RearRightCalipers, asset.WheelRestLocalPositions, totalRR_Y, 0f, 0f);
+            UpdateWheelQuadrant(asset.FrontLeftCalipers, asset.WheelRestLocalPositions, asset.WheelRestLocalRotations, totalFL_Y, 0f, steerFL, isRightSide: false);
+            UpdateWheelQuadrant(asset.FrontRightCalipers, asset.WheelRestLocalPositions, asset.WheelRestLocalRotations, totalFR_Y, 0f, steerFR, isRightSide: true);
+            UpdateWheelQuadrant(asset.RearLeftCalipers, asset.WheelRestLocalPositions, asset.WheelRestLocalRotations, totalRL_Y, 0f, 0f, isRightSide: false);
+            UpdateWheelQuadrant(asset.RearRightCalipers, asset.WheelRestLocalPositions, asset.WheelRestLocalRotations, totalRR_Y, 0f, 0f, isRightSide: true);
 
             // 3. Motorcycle Lean Physics (Feature 5)
             if (spec.Category == VehicleTypeCategory.Motorcycle)
@@ -432,8 +432,12 @@ namespace ExtendedWhips.Hooks
             }
         }
 
-        private static void UpdateWheelQuadrant(List<Transform> wheelTransforms, Dictionary<Transform, Vector3> restPositions, float deltaY, float spinAngle, float steerAngle)
+        private static void UpdateWheelQuadrant(List<Transform> wheelTransforms, Dictionary<Transform, Vector3> restPositions, Dictionary<Transform, Quaternion> restRotations, float deltaY, float spinAngle, float steerAngle, bool isRightSide)
         {
+            float sideSpin = isRightSide ? -spinAngle : spinAngle;
+            Quaternion steerRot = Quaternion.Euler(0f, steerAngle, 0f);
+            Quaternion spinRot = Quaternion.Euler(sideSpin, 0f, 0f);
+
             for (int i = 0; i < wheelTransforms.Count; i++)
             {
                 var t = wheelTransforms[i];
@@ -443,7 +447,15 @@ namespace ExtendedWhips.Hooks
                 {
                     t.localPosition = new Vector3(restPos.x, restPos.y + deltaY, restPos.z);
                 }
-                t.localRotation = Quaternion.Euler(spinAngle, steerAngle, 0f);
+
+                if (restRotations.TryGetValue(t, out var restRot))
+                {
+                    t.localRotation = steerRot * restRot * spinRot;
+                }
+                else
+                {
+                    t.localRotation = steerRot * spinRot;
+                }
             }
         }
 
