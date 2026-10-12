@@ -126,7 +126,7 @@ ExtendedWhips/
 ├── tools/
 │   ├── Build-And-Deploy.ps1         # Compiles Release build and copies to ConSim plugins
 │   ├── Install-BepInEx.ps1          # Automated BepInEx 6 IL2CPP environment setup
-│   └── FixIl2Cpp/                   # Thread-safe 16-byte trampoline hotpatching engine
+│   └── FixIl2Cpp/                   # Cecil-based interop inspector (usage: FixIl2Cpp <BepInEx/interop>); atomic trampoline hotpatch lives in Plugin.cs
 ├── features.md                      # Comprehensive technical feature breakdown
 ├── changelog.md                     # Semantic versioning changelog
 └── README.md                        # Project documentation

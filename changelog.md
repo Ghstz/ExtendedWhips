@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.1] - 2026-10-12
+
+### Performance, GC Optimization & Stability Audit
+Comprehensive audit and hardening pass across all vehicle physics hooks, custom particle FX, UI event pumping, and IL2CPP interop.
+
+#### Fixed
+- Launch control holds its RPM via the engine's own limiter (`LaunchControlSystem.RpmLimitOverride`, applied by the tuner) instead of writing the throttle input channel.
+- Hotkeys (`F4/F5/F6/F8`, `PgUp/PgDn`) and the photo-mode camera run from a once-per-frame tick on the IMGUI host, independent of the physics step and working while time is frozen (F9 can always exit). `J`/`H`/`L` are latched and consumed by physics-side code.
+- Mud now visibly tints/dulls the body (throttled material writes); paint changes re-apply it, wash clears it.
+- Wear no longer registers false hits on first frame / vehicle swap, counts each collision once, and sets URP `_Smoothness`.
+- Skidmark setup tolerates a missing shader gracefully.
+- Nitrous torque boost now works under the per-frame tuner (exposed as `CustomVehicleNitrous.TorqueBoost`, applied in `ApplyTuningToInstance`); previously the engine write was overwritten every frame (~+1% effective).
+- Gyro drift assist no longer applies full counter-torque while reversing.
+- Launch control, EV drive/regen and gyro torque are normalised per physics step (FPS-independent, zero while photo mode freezes time).
+- Drag benchmark longitudinal G now uses real acceleration instead of velocity/dt.
+- Burnout smoke / roostertail emission and supercharger whine are framerate-independent.
+- Gameplay hotkeys (`N`, `LeftShift`, `Space`/`W`, `J`, `H`) ignore input while a text field has focus or Photo Mode is active.
+- GameAssembly hotpatch is now written with a single atomic 8-byte compare-exchange and flushes the instruction cache.
+- Nitrous FOV punch no longer touches `Camera.main` while idle.
+- Plugin and assembly versions synced to 2.1.1.
+
+#### Performance
+- Cached `VPWheelCollider[]`, `WheelCollider[]`, `Rigidbody`, and the first-person camera behaviour (previously re-queried every frame).
+- Replaced 29 silent `catch { }` blocks with a log-once helper (`Plugin.LogOnce`).
+
+#### Docs
+- `FixIl2Cpp` is documented as an interop inspector (takes the interop path as an argument); aero airbrake thresholds match code (25% brake, 28°).
+
+---
+
 ## [2.1.0] - 2026-10-12
 
 ### The Pro Driver & Logistics Expansion

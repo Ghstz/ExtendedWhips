@@ -15,6 +15,7 @@ namespace ExtendedWhips.Effects
         private static float _prevRpm = 0f;
         private static float _boostPressure = 0f; // 0 to 1.8 bar
         private static float _lastBovTime = 0f;
+        private static float _lastWhineTime = 0f;
         private static float _lastJakeTime = 0f;
 
         public static void InitializeAudio(LoadedVehicleAsset asset)
@@ -58,7 +59,7 @@ namespace ExtendedWhips.Effects
                     throttle = v.data.Get(VehiclePhysics.Channel.Input, VehiclePhysics.InputData.Throttle) / 10000f;
                 }
             }
-            catch { }
+            catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
 
             var spec = asset.Spec;
             string modelId = spec.Id;
@@ -66,8 +67,9 @@ namespace ExtendedWhips.Effects
             // 1. Supercharger Whine (Cuda 426 Hemi & Raptor R Supercharged V8)
             if (modelId == "cuda71" || modelId == "raptor_r")
             {
-                if (throttle > 0.15f && rpm > 2200f && UnityEngine.Random.value < 0.20f)
+                if (throttle > 0.15f && rpm > 2200f && Time.time - _lastWhineTime > 0.08f)
                 {
+                    _lastWhineTime = Time.time;
                     float whinePitch = Mathf.Clamp(1.0f + (rpm - 2000f) / 3500f, 1.0f, 2.4f);
                     float whineVol = Mathf.Clamp01(throttle * 0.45f);
                     _audioSource.pitch = whinePitch;

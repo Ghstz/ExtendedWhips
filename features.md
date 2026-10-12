@@ -157,7 +157,7 @@ Located in **Tab 6 [TELEMETRY]**:
 
 ## 9. Active Aerodynamics & High-Speed Airbrake
 
-* Detected rear wing structures (e.g. BMW M4 GT3, Nissan Skyline R34 GT-R) automatically tilt up by **+38°** when hard braking (>50% brake input) at speeds above **75 km/h**, acting as an airbrake.
+* Detected rear wing structures (e.g. BMW M4 GT3, Nissan Skyline R34 GT-R) automatically tilt by **28°** when braking (>25% brake input) at speeds above **75 km/h**, acting as an airbrake.
 
 ---
 

@@ -102,8 +102,10 @@ namespace ExtendedWhips.Effects
         public static void UpdateEmergencyLights(VPVehicleController v, LoadedVehicleAsset asset)
         {
             // Key shortcut [J] toggles Strobes, [H] toggles Siren
-            if (Input.GetKeyDown(KeyCode.J)) ToggleStrobes();
-            if (Input.GetKeyDown(KeyCode.H)) ToggleSiren();
+            bool jPressed = Plugin.ConsumeKeyDown(KeyCode.J);
+            bool hPressed = Plugin.ConsumeKeyDown(KeyCode.H);
+            if (!Plugin.InputBlocked && jPressed) ToggleStrobes();
+            if (!Plugin.InputBlocked && hPressed) ToggleSiren();
 
             if (!IsStrobesActive)
             {

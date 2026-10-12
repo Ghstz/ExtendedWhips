@@ -5,9 +5,14 @@ using Mono.Cecil;
 
 class Program
 {
-    static void Main()
+    static void Main(string[] args)
     {
-        string interopDir = @"D:\SteamLibrary\steamapps\common\Construction Simulator\BepInEx\interop";
+        if (args.Length < 1 || !Directory.Exists(args[0]))
+        {
+            Console.Error.WriteLine("usage: FixIl2Cpp <path-to-BepInEx/interop>");
+            return;
+        }
+        string interopDir = args[0];
         var resolver = new DefaultAssemblyResolver();
         resolver.AddSearchDirectory(interopDir);
         var readerParams = new ReaderParameters { AssemblyResolver = resolver };

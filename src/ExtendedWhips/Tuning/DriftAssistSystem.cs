@@ -31,6 +31,7 @@ namespace ExtendedWhips.Tuning
             if (speedKmh < 12.0f) return;
 
             Vector3 localVel = v.transform.InverseTransformDirection(velocity);
+            if (localVel.z < 1.0f) return; // reversing/sideways-only: atan2 would read ~180° and spin the car
             // Calculate lateral slip angle (drift angle in degrees)
             float driftAngle = Mathf.Atan2(localVel.x, localVel.z) * Mathf.Rad2Deg;
 
@@ -40,6 +41,8 @@ namespace ExtendedWhips.Tuning
                 float sign = Mathf.Sign(driftAngle);
                 float magnitude = Mathf.Clamp01((Mathf.Abs(driftAngle) - 8.0f) / 45.0f);
                 float torqueAmount = -sign * magnitude * GyroAssistanceStrength * 1800f;
+                // Forces accumulate until the next physics step; normalise to per-step (0 when timeScale == 0)
+                torqueAmount *= Time.deltaTime / Mathf.Max(0.001f, Time.fixedDeltaTime);
 
                 v.cachedRigidbody.AddTorque(Vector3.up * torqueAmount, ForceMode.Force);
             }

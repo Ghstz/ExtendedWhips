@@ -52,20 +52,22 @@ namespace ExtendedWhips.Tuning
                     throttle = v.data.Get(VehiclePhysics.Channel.Input, VehiclePhysics.InputData.Throttle) / 10000f;
                 }
             }
-            catch { }
+            catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
+
+            float stepScale = Time.deltaTime / Mathf.Max(0.001f, Time.fixedDeltaTime);
 
             // 1. Instant Electric Torque Injection
             if (throttle > 0.05f && v.cachedRigidbody != null)
             {
                 // Instant flat EV torque delivery
-                v.cachedRigidbody.AddForce(v.transform.forward * (throttle * 3800f), ForceMode.Force);
+                v.cachedRigidbody.AddForce(v.transform.forward * (throttle * 3800f * stepScale), ForceMode.Force);
             }
 
             // 2. One-Pedal Regenerative Braking
             if (throttle < 0.05f && speedKmh > 5.0f && v.cachedRigidbody != null)
             {
                 Vector3 brakeDir = -v.cachedRigidbody.velocity.normalized;
-                v.cachedRigidbody.AddForce(brakeDir * (EvRegenBrakeStrength * 2800f), ForceMode.Force);
+                v.cachedRigidbody.AddForce(brakeDir * (EvRegenBrakeStrength * 2800f * stepScale), ForceMode.Force);
             }
 
             // 3. Cyber Inverter Sound Modulation

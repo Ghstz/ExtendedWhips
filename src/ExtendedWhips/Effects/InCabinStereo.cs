@@ -27,7 +27,7 @@ namespace ExtendedWhips.Effects
             {
                 if (!Directory.Exists(_musicDir)) Directory.CreateDirectory(_musicDir);
             }
-            catch { }
+            catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
 
             var stereoObj = new GameObject("InCabinStereoAudio");
             stereoObj.transform.SetParent(asset.RootObject.transform, false);

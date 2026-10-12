@@ -20,7 +20,7 @@ namespace ExtendedWhips.Cockpit
                     rpm = v.data.Get(VehiclePhysics.Channel.Vehicle, VehiclePhysics.VehicleData.EngineRpm) / 1000f;
                 }
             }
-            catch { }
+            catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
 
             // Sweeping rotation angles (0 to 240 degrees)
             float speedAngle = Mathf.Clamp(speedKmh * 1.0f, 0f, 240f);

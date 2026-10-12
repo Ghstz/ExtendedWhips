@@ -128,7 +128,7 @@ namespace ExtendedWhips.Effects
                     throttle = v.data.Get(VehiclePhysics.Channel.Input, VehiclePhysics.InputData.Throttle) / 10000f;
                 }
             }
-            catch { }
+            catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
 
             float targetSmokeRate = Mathf.Lerp(4f, 40f, Mathf.Clamp01(rpm / 6500f));
             foreach (var ps in asset.ExhaustSmokeSystems)

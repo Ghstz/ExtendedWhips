@@ -211,7 +211,7 @@ namespace ExtendedWhips.Models
                                 colorVec = baseColorChannel.Value.Color;
                                 foundColor = true;
                             }
-                            catch { }
+                            catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
 
                             if (baseColorChannel.Value.Texture != null && baseColorChannel.Value.Texture.PrimaryImage != null)
                             {
@@ -220,7 +220,7 @@ namespace ExtendedWhips.Models
                             }
                         }
                     }
-                    catch { }
+                    catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
 
                     Color col;
                     float metallic = 0.5f;
@@ -332,7 +332,7 @@ namespace ExtendedWhips.Models
                             }
                         }
                     }
-                    catch { }
+                    catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
 
                     if (isGlass || col.a < 0.95f)
                     {

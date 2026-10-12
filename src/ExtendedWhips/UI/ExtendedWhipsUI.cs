@@ -32,6 +32,17 @@ namespace ExtendedWhips.UI
 
             try
             {
+                // Once per rendered frame (OnGUI fires several times per frame), independent of physics step / timeScale
+                if (Plugin.PumpInput())
+                {
+                    VehicleTunerHook.HandleInput();
+                    PhotoModeFreecam.UpdateFreecam();
+                }
+            }
+            catch (Exception ex_) { Plugin.LogOnce(ex_); }
+
+            try
+            {
                 ExtendedWhipsUI.OnRenderGUI();
             }
             catch (Exception ex)
@@ -101,7 +112,7 @@ namespace ExtendedWhips.UI
                         Cursor.visible = IsMenuOpen;
                         Cursor.lockState = IsMenuOpen ? CursorLockMode.None : CursorLockMode.Locked;
                     }
-                    catch { }
+                    catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
                     Plugin.LogMsg($"[ExtendedWhips] Menu toggled on Layout pass: IsMenuOpen = {IsMenuOpen}");
                 }
                 else if (_pendingMenuClose)
@@ -113,7 +124,7 @@ namespace ExtendedWhips.UI
                         Cursor.visible = false;
                         Cursor.lockState = CursorLockMode.Locked;
                     }
-                    catch { }
+                    catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
                     Plugin.LogMsg("[ExtendedWhips] Menu closed on Layout pass");
                 }
 
@@ -143,19 +154,19 @@ namespace ExtendedWhips.UI
             }
 
             // Draw Toast Banner
-            try { DrawToast(); } catch { }
+            try { DrawToast(); } catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
 
             // Draw On-Screen HUD Overlay
-            try { DrawHud(); } catch { }
+            try { DrawHud(); } catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
 
             // Draw Configuration Menu Window
             if (IsMenuOpen)
             {
-                try { DrawMenuWindow(); } catch { }
+                try { DrawMenuWindow(); } catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
             }
 
             // Draw Photo Mode GUI Overlay
-            try { PhotoModeFreecam.DrawPhotoModeGui(); } catch { }
+            try { PhotoModeFreecam.DrawPhotoModeGui(); } catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
         }
 
         // ==========================================
@@ -250,7 +261,7 @@ namespace ExtendedWhips.UI
                     TuningPreset.HyperInsane => "HYPER OVERKILL",
                     _ => "CUSTOM TUNED"
                 };
-                if (EvPowertrainSystem.IsEvSwapActive) presetName += " | ⚡ EV CYBER";
+                if (EvPowertrainSystem.IsEvSwapActive) presetName += " | âš¡ EV CYBER";
                 GUILayout.Label($"<b>Mode: <color={presetColor}>[{presetName}]</color></b>");
 
                 // Speed & Gear
@@ -266,7 +277,7 @@ namespace ExtendedWhips.UI
                         gear = v.data.Get(VehiclePhysics.Channel.Vehicle, VehiclePhysics.VehicleData.GearboxGear);
                     }
                 }
-                catch { }
+                catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
 
                 string gearStr = gear switch
                 {
@@ -315,7 +326,7 @@ namespace ExtendedWhips.UI
                 }
                 else if (InCabinStereo.IsPlaying)
                 {
-                    GUILayout.Label($"<b><color=#00FFCC>♫ {InCabinStereo.CurrentTrackTitle}</color></b>");
+                    GUILayout.Label($"<b><color=#00FFCC>â™« {InCabinStereo.CurrentTrackTitle}</color></b>");
                 }
                 else
                 {
@@ -556,7 +567,7 @@ namespace ExtendedWhips.UI
 
             // 7. Instant EV Powertrain & Cyber Sound Swap
             GUI.backgroundColor = EvPowertrainSystem.IsEvSwapActive ? new Color(0.0f, 0.9f, 0.8f, 1.0f) : new Color(0.2f, 0.3f, 0.4f, 1.0f);
-            if (GUILayout.Button(EvPowertrainSystem.IsEvSwapActive ? "[ ⚡ 1,500 HP CYBER EV SWAP: ACTIVE ]" : "[ ⚡ SWAP TO 1,500 HP CYBER EV MOTOR ]", GUILayout.Height(30)))
+            if (GUILayout.Button(EvPowertrainSystem.IsEvSwapActive ? "[ âš¡ 1,500 HP CYBER EV SWAP: ACTIVE ]" : "[ âš¡ SWAP TO 1,500 HP CYBER EV MOTOR ]", GUILayout.Height(30)))
             {
                 EvPowertrainSystem.IsEvSwapActive = !EvPowertrainSystem.IsEvSwapActive;
                 ShowToast("POWERTRAIN SWAP", EvPowertrainSystem.IsEvSwapActive ? "Installed Instant-Torque 1,500 HP Cyber EV Motor & Inverter" : "Restored Internal Combustion Engine");
@@ -699,14 +710,14 @@ namespace ExtendedWhips.UI
 
             GUILayout.Space(8);
 
-            // 6. Formula Drift 70° Angle Kit & Gyro Drift Assist
+            // 6. Formula Drift 70Â° Angle Kit & Gyro Drift Assist
             GUILayout.BeginHorizontal();
             GUI.backgroundColor = DriftAssistSystem.IsAngleKitEnabled ? new Color(0.0f, 0.85f, 1.0f) : new Color(0.2f, 0.3f, 0.4f);
-            if (GUILayout.Button(DriftAssistSystem.IsAngleKitEnabled ? "[ Wisefab 70° Angle Kit: ON ]" : "[ Wisefab 70° Angle Kit: OFF ]", GUILayout.Height(28)))
+            if (GUILayout.Button(DriftAssistSystem.IsAngleKitEnabled ? "[ Wisefab 70Â° Angle Kit: ON ]" : "[ Wisefab 70Â° Angle Kit: OFF ]", GUILayout.Height(28)))
             {
                 DriftAssistSystem.IsAngleKitEnabled = !DriftAssistSystem.IsAngleKitEnabled;
                 if (DriftAssistSystem.IsAngleKitEnabled) p.CustomSteerAngle = 68f;
-                ShowToast("ANGLE KIT", DriftAssistSystem.IsAngleKitEnabled ? "Installed Formula Drift 68°–70° Steering Angle Knuckles" : "Restored Standard Steering Lock");
+                ShowToast("ANGLE KIT", DriftAssistSystem.IsAngleKitEnabled ? "Installed Formula Drift 68Â°â€“70Â° Steering Angle Knuckles" : "Restored Standard Steering Lock");
             }
 
             GUI.backgroundColor = DriftAssistSystem.IsGyroAssistEnabled ? new Color(0.0f, 0.8f, 0.4f) : new Color(0.4f, 0.2f, 0.2f);
@@ -826,7 +837,7 @@ namespace ExtendedWhips.UI
                     gear = v.data.Get(VehiclePhysics.Channel.Vehicle, VehiclePhysics.VehicleData.GearboxGear);
                 }
             }
-            catch { }
+            catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
 
             float maxRpm = v.engine != null ? v.engine.maxRpm : 3500f;
             float torque = v.engine != null ? v.engine.peakRpmTorque : 0f;
@@ -1096,17 +1107,17 @@ namespace ExtendedWhips.UI
                 // --- EMERGENCY STROBES & SIREN ---
                 GUILayout.BeginHorizontal();
                 GUI.backgroundColor = CustomEmergencyLighting.IsStrobesActive ? new Color(1.0f, 0.65f, 0.0f) : new Color(0.3f, 0.35f, 0.4f);
-                if (GUILayout.Button(CustomEmergencyLighting.IsStrobesActive ? "[🚨 ESCORT STROBES: ON [J]]" : "[🚨 ESCORT STROBES: OFF [J]]", GUILayout.Height(26)))
+                if (GUILayout.Button(CustomEmergencyLighting.IsStrobesActive ? "[ðŸš¨ ESCORT STROBES: ON [J]]" : "[ðŸš¨ ESCORT STROBES: OFF [J]]", GUILayout.Height(26)))
                 {
                     CustomEmergencyLighting.ToggleStrobes();
                 }
                 GUI.backgroundColor = CustomEmergencyLighting.IsSirenActive ? new Color(0.9f, 0.2f, 0.2f) : new Color(0.3f, 0.35f, 0.4f);
-                if (GUILayout.Button(CustomEmergencyLighting.IsSirenActive ? "[🔊 SIREN: ON [H]]" : "[🔊 SIREN: OFF [H]]", GUILayout.Height(26)))
+                if (GUILayout.Button(CustomEmergencyLighting.IsSirenActive ? "[ðŸ”Š SIREN: ON [H]]" : "[ðŸ”Š SIREN: OFF [H]]", GUILayout.Height(26)))
                 {
                     CustomEmergencyLighting.ToggleSiren();
                 }
                 GUI.backgroundColor = new Color(0.0f, 0.85f, 1.0f);
-                if (GUILayout.Button("[📸 PHOTO MODE [F9]]", GUILayout.Height(26)))
+                if (GUILayout.Button("[ðŸ“¸ PHOTO MODE [F9]]", GUILayout.Height(26)))
                 {
                     PhotoModeFreecam.TogglePhotoMode();
                 }
@@ -1116,7 +1127,7 @@ namespace ExtendedWhips.UI
                 // --- IN-CABIN BLUETOOTH STEREO ---
                 GUILayout.BeginHorizontal();
                 GUI.backgroundColor = InCabinStereo.IsPlaying ? new Color(0.0f, 0.9f, 0.6f) : new Color(0.3f, 0.35f, 0.4f);
-                if (GUILayout.Button(InCabinStereo.IsPlaying ? "[♫ STEREO: PLAYING]" : "[♫ STEREO: PAUSED]", GUILayout.Width(170), GUILayout.Height(24)))
+                if (GUILayout.Button(InCabinStereo.IsPlaying ? "[â™« STEREO: PLAYING]" : "[â™« STEREO: PAUSED]", GUILayout.Width(170), GUILayout.Height(24)))
                 {
                     InCabinStereo.TogglePlayback();
                 }

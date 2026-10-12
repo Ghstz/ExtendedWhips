@@ -69,6 +69,11 @@ namespace ExtendedWhips.Tuning
 
         // 7. Wheels & Suspension
         public List<StockWheelSpecs> Wheels = new();
+
+        // Runtime component caches (avoid per-frame GetComponent* allocations on IL2CPP)
+        public Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppArrayBase<VPWheelCollider>? VpWheels;
+        public Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppArrayBase<WheelCollider>? UnityWheels;
+        public Rigidbody? Rb;
     }
 
     [Serializable]

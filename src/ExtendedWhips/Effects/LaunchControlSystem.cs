@@ -14,6 +14,9 @@ namespace ExtendedWhips.Effects
 
         public const float LaunchTargetRpm = 4500f;
 
+        /// <summary>Engine RPM cap while launch control is active (0 = no override). Consumed by VehicleTunerHook.</summary>
+        public static float RpmLimitOverride => IsLaunchControlActive ? LaunchTargetRpm : 0f;
+
         public static void UpdateLaunchControl(VPVehicleController v, LoadedVehicleAsset asset)
         {
             if (v == null || asset == null) return;
@@ -32,27 +35,19 @@ namespace ExtendedWhips.Effects
                     handbrake = v.data.Get(VehiclePhysics.Channel.Input, VehiclePhysics.InputData.Handbrake) / 10000f;
                 }
             }
-            catch { }
+            catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
 
             // Handbrake or Spacebar + Full Throttle at low speed
-            bool handbrakeHeld = handbrake > 0.4f || Input.GetKey(KeyCode.Space);
-            bool throttlePinned = throttle > 0.65f || Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow);
+            bool kb = !Plugin.InputBlocked;
+            bool handbrakeHeld = handbrake > 0.4f || (kb && Input.GetKey(KeyCode.Space));
+            bool throttlePinned = throttle > 0.65f || (kb && (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)));
 
             if (speedKmh < 4.0f && handbrakeHeld && throttlePinned)
             {
                 IsLaunchControlActive = true;
                 IsAntiLagSpitting = true;
 
-                // Pulsate / cut engine fuel & spark to hold launch target RPM
-                if (v.engine != null && v.data != null)
-                {
-                    float currentRpm = v.data.Get(VehiclePhysics.Channel.Vehicle, VehiclePhysics.VehicleData.EngineRpm) / 1000f;
-                    if (currentRpm > LaunchTargetRpm)
-                    {
-                        // Cut throttle back
-                        v.data.Set(VehiclePhysics.Channel.Input, VehiclePhysics.InputData.Throttle, 1500); // 15% throttle hold
-                    }
-                }
+                // RPM hold is enforced by the engine's own limiter: see RpmLimitOverride (applied in VehicleTunerHook)
 
                 // Rapid-fire anti-lag backfire pops & flames
                 _antiLagTimer += Time.deltaTime;
@@ -80,7 +75,7 @@ namespace ExtendedWhips.Effects
                 // Add instantaneous slingshot launch boost
                 if (v.cachedRigidbody != null)
                 {
-                    v.cachedRigidbody.AddForce(v.transform.forward * 4500f, ForceMode.Force);
+                    v.cachedRigidbody.AddForce(v.transform.forward * (4500f * Time.deltaTime / Mathf.Max(0.001f, Time.fixedDeltaTime)), ForceMode.Force);
                 }
             }
         }

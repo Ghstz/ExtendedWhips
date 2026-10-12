@@ -18,6 +18,10 @@ namespace ExtendedWhips.Hooks
         public Vector3 StockDriverLocalPosition { get; set; } = Vector3.zero;
         public bool HasStockDriverPosition { get; set; } = false;
 
+        // Cached component lookups (avoid per-frame IL2CPP GetComponents* allocations)
+        public Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppArrayBase<VPWheelCollider>? WheelCache { get; set; }
+        public Wb.Camera.WbMachineFirstPersonCameraBehaviour? FpCam { get; set; }
+
         // Baseline wheel hub Y positions for suspension delta tracking
         public float BaseHubY_FL { get; set; } = 0f;
         public float BaseHubY_FR { get; set; } = 0f;
@@ -93,7 +97,7 @@ namespace ExtendedWhips.Hooks
                 {
                     if (driverComp != null) driverRend = driverComp.rend;
                 }
-                catch { }
+                catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
 
                 if (existingState.HiddenOemRenderers.Count == 0)
                 {
@@ -133,7 +137,7 @@ namespace ExtendedWhips.Hooks
                         var stockPos = existingState.StockDriverLocalPosition;
                         driverComp.transform.localPosition = new Vector3(stockPos.x, stockPos.y + modelSpec.DriverYOffset, stockPos.z);
                     }
-                    catch { }
+                    catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
                 }
 
                 Material? sampleMat = null;
@@ -220,7 +224,9 @@ namespace ExtendedWhips.Hooks
             var asset = state.LoadedAsset;
             var spec = state.ActiveModel;
 
-            var vpWheels = v.GetComponentsInChildren<VPWheelCollider>();
+            var vpWheels = state.WheelCache;
+            if (vpWheels == null || vpWheels.Length == 0 || vpWheels[0] == null)
+                vpWheels = state.WheelCache = v.GetComponentsInChildren<VPWheelCollider>();
             VPWheelCollider? wheelFL = null;
             VPWheelCollider? wheelFR = null;
             VPWheelCollider? wheelRL = null;
@@ -276,7 +282,7 @@ namespace ExtendedWhips.Hooks
                     brake = v.data.Get(VehiclePhysics.Channel.Input, VehiclePhysics.InputData.Brake) / 10000f;
                 }
             }
-            catch { }
+            catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
 
             float squatRear = -Mathf.Clamp(throttle * 0.035f, 0f, 0.045f);
             float liftFront = +Mathf.Clamp(throttle * 0.015f, 0f, 0.020f);
@@ -380,11 +386,12 @@ namespace ExtendedWhips.Hooks
             // 17. Dynamic Skidmarks on Asphalt
             DynamicSkidmarks.UpdateSkidmarks(v);
 
-            // 18. Formula Drift 70° Angle Kit & Gyro Assist
+            // 18. Formula Drift 70Â° Angle Kit & Gyro Assist
             DriftAssistSystem.UpdateDriftAssist(v);
 
             // 19. In-Cabin Stereo with Acoustic Filtering
-            bool isCockpit = (v.GetComponentInChildren<Wb.Camera.WbMachineFirstPersonCameraBehaviour>()?.enabled == true);
+            if (state.FpCam == null) state.FpCam = v.GetComponentInChildren<Wb.Camera.WbMachineFirstPersonCameraBehaviour>(true);
+            bool isCockpit = state.FpCam != null && state.FpCam.enabled;
             InCabinStereo.UpdateStereo(v, isCockpit);
 
             // 20. Instant EV Powertrain & Cyber Sound
@@ -395,9 +402,6 @@ namespace ExtendedWhips.Hooks
 
             // 22. Visual Wear & Scratches
             VehicleWearSystem.UpdateWear(v, asset);
-
-            // 23. Cinematic Photo Drone Mode
-            PhotoModeFreecam.UpdateFreecam();
         }
 
         private static void UpdateActiveAerodynamics(VPVehicleController v, VehicleSkinState state, LoadedVehicleAsset asset)
@@ -413,7 +417,7 @@ namespace ExtendedWhips.Hooks
                     brake = v.data.Get(VehiclePhysics.Channel.Input, VehiclePhysics.InputData.Brake) / 10000f;
                 }
             }
-            catch { }
+            catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
 
             bool isAirbrake = (speedKmh > 75f && brake > 0.25f);
             float targetAngle = isAirbrake ? -28f : 0f;
@@ -508,6 +512,7 @@ namespace ExtendedWhips.Hooks
                 if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", smoothness);
                 if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", smoothness);
             }
+            MudAccumulationSystem.MarkVisualsDirty();
             ExtendedWhipsUI.ShowToast("PAINT SHOP", "Applied custom body finish to vehicle.");
         }
 
@@ -715,7 +720,7 @@ namespace ExtendedWhips.Hooks
                             driverComp.transform.localPosition = state.StockDriverLocalPosition;
                         }
                     }
-                    catch { }
+                    catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
                 }
 
                 CockpitCameraAligner.RestoreCockpitCamera(v);

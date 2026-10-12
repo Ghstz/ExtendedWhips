@@ -34,6 +34,7 @@ namespace ExtendedWhips.Tuning
         public static float BestQuarterMileTrapSpeedKmh { get; private set; } = 0f;
 
         private static float _runStartTime = 0f;
+        private static float _prevLocalVelZ = 0f;
         private static Vector3 _runStartPosition = Vector3.zero;
         private static bool _hit60 = false;
         private static bool _hit100 = false;
@@ -54,9 +55,11 @@ namespace ExtendedWhips.Tuning
             var rb = v.GetComponent<Rigidbody>();
             if (rb != null)
             {
-                Vector3 localAcc = v.transform.InverseTransformDirection(rb.velocity) / Mathf.Max(0.02f, Time.deltaTime);
+                float dt = Time.deltaTime;
+                float localVelZ = v.transform.InverseTransformDirection(rb.velocity).z;
                 float latG = Mathf.Abs(v.speed * (rb.angularVelocity.y)) / 9.81f;
-                float longG = localAcc.z / 9.81f;
+                float longG = dt > 0.0001f ? ((localVelZ - _prevLocalVelZ) / dt) / 9.81f : 0f;
+                _prevLocalVelZ = localVelZ;
 
                 if (latG > PeakLateralG) PeakLateralG = latG;
                 if (longG > PeakLongitudinalG) PeakLongitudinalG = longG;

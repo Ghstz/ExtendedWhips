@@ -33,6 +33,11 @@ namespace ExtendedWhips.Effects
             {
                 // Create an unlit dark rubber material
                 var shader = Shader.Find("Sprites/Default") ?? Shader.Find("Standard") ?? Shader.Find("Particles/Standard Unlit");
+                if (shader == null)
+                {
+                    Plugin.LogMsg("[ExtendedWhips] No usable shader for skidmarks; skidmarks disabled.");
+                    return;
+                }
                 _skidMaterial = new Material(shader)
                 {
                     color = new Color(0.12f, 0.12f, 0.12f, 0.75f)
@@ -80,7 +85,7 @@ namespace ExtendedWhips.Effects
                     brake = v.data.Get(VehiclePhysics.Channel.Input, VehiclePhysics.InputData.Brake) / 10000f;
                 }
             }
-            catch { }
+            catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
 
             for (int i = 0; i < _activeTrails.Count; i++)
             {

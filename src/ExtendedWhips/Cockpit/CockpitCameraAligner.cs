@@ -70,7 +70,7 @@ namespace ExtendedWhips.Cockpit
                     _stockCameraPositions.Remove(id);
                 }
             }
-            catch { }
+            catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
         }
 
         public static void UpdateSteeringWheel(VPVehicleController v, LoadedVehicleAsset asset)
@@ -94,7 +94,7 @@ namespace ExtendedWhips.Cockpit
                     }
                 }
             }
-            catch { }
+            catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
 
             foreach (var t in asset.SteeringWheelTransforms)
             {

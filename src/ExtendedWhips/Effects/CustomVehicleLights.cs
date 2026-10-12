@@ -109,7 +109,8 @@ namespace ExtendedWhips.Effects
         {
             if (v == null || asset == null) return;
 
-            if (Input.GetKeyDown(KeyCode.L))
+            bool lPressed = Plugin.ConsumeKeyDown(KeyCode.L);
+            if (lPressed && !Plugin.InputBlocked)
             {
                 _manualHeadlightsOn = !_manualHeadlightsOn;
             }
@@ -138,7 +139,7 @@ namespace ExtendedWhips.Effects
                     }
                 }
             }
-            catch { }
+            catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
 
             // 1. Headlights
             foreach (var l in asset.HeadlightSources)
@@ -162,7 +163,7 @@ namespace ExtendedWhips.Effects
                     isBraking = v.data.Get(VehiclePhysics.Channel.Input, VehiclePhysics.InputData.Brake) > 500;
                 }
             }
-            catch { }
+            catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
 
             foreach (var l in asset.TaillightSources)
             {
@@ -200,7 +201,7 @@ namespace ExtendedWhips.Effects
                     isReverse = v.data.Get(VehiclePhysics.Channel.Vehicle, VehiclePhysics.VehicleData.GearboxGear) < 0;
                 }
             }
-            catch { }
+            catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
 
             foreach (var l in asset.ReverseSources)
             {

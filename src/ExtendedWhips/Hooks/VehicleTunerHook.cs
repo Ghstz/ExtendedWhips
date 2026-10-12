@@ -128,12 +128,10 @@ namespace ExtendedWhips.Hooks
 
             // Animate wheel spin & steering for active custom vehicle body swap
             VehicleReskinManager.UpdateWheels(__instance);
-
-            // Handle In-Game Keybinds during vehicle update
-            HandleInput(__instance);
         }
 
-        private static void HandleInput(VPVehicleController instance)
+        /// <summary>Global hotkeys. Called once per rendered frame from the IMGUI host (not from the physics step).</summary>
+        public static void HandleInput()
         {
             // [F4] or [Insert] or [F2] Toggle Full Vehicle Configuration Menu
             if (Input.GetKeyDown(KeyCode.F4) || Input.GetKeyDown(KeyCode.Insert) || Input.GetKeyDown(KeyCode.F2))
@@ -374,10 +372,13 @@ namespace ExtendedWhips.Hooks
             // 1. Engine & Powertrain
             if (v.engine != null)
             {
-                v.engine.peakRpmTorque = stock.PeakTorque * Profile.TorqueMultiplier;
+                v.engine.peakRpmTorque = stock.PeakTorque * Profile.TorqueMultiplier * ExtendedWhips.Effects.CustomVehicleNitrous.TorqueBoost;
                 v.engine.idleRpmTorque = stock.IdleTorque * Profile.IdleTorqueMultiplier;
                 v.engine.maxRpm = stock.MaxRpm * Profile.RpmMultiplier;
-                v.engine.rpmLimiterMax = stock.RpmLimiter * Profile.RpmMultiplier;
+                float limiter = stock.RpmLimiter * Profile.RpmMultiplier;
+                float launchCap = VehicleReskinManager.IsSkinActive(v) ? ExtendedWhips.Effects.LaunchControlSystem.RpmLimitOverride : 0f;
+                if (launchCap > 0f) limiter = Mathf.Min(limiter, launchCap);
+                v.engine.rpmLimiterMax = limiter;
                 v.engine.idleRpm = stock.IdleRpm * Profile.IdleRpmMultiplier;
                 v.engine.inertia = Mathf.Max(0.05f, stock.Inertia * Profile.FlywheelInertiaMultiplier);
                 v.engine.frictionTorque = stock.FrictionTorque * Profile.CompressionBrakingMultiplier;
@@ -437,7 +438,9 @@ namespace ExtendedWhips.Hooks
             }
 
             // 6. Wheels & Suspension (VPWheelCollider)
-            var vpWheels = v.GetComponentsInChildren<VPWheelCollider>();
+            if (stock.VpWheels == null || stock.VpWheels.Length == 0 || stock.VpWheels[0] == null)
+                stock.VpWheels = v.GetComponentsInChildren<VPWheelCollider>();
+            var vpWheels = stock.VpWheels;
             if (vpWheels != null && vpWheels.Length > 0 && stock.Wheels.Count == vpWheels.Length)
             {
                 for (int i = 0; i < vpWheels.Length; i++)
@@ -454,7 +457,9 @@ namespace ExtendedWhips.Hooks
             }
 
             // 7. Tires & Grip (Standard WheelCollider forward/sideways friction)
-            var unityWheels = v.GetComponentsInChildren<WheelCollider>();
+            if (stock.UnityWheels == null || stock.UnityWheels.Length == 0 || stock.UnityWheels[0] == null)
+                stock.UnityWheels = v.GetComponentsInChildren<WheelCollider>();
+            var unityWheels = stock.UnityWheels;
             if (unityWheels != null)
             {
                 foreach (var uw in unityWheels)
@@ -470,7 +475,8 @@ namespace ExtendedWhips.Hooks
             }
 
             // 8. Chassis & Aerodynamics (Rigidbody)
-            var rb = v.GetComponent<Rigidbody>();
+            if (stock.Rb == null) stock.Rb = v.GetComponent<Rigidbody>();
+            var rb = stock.Rb;
             if (rb != null)
             {
                 rb.mass = stock.ChassisMass * Profile.ChassisMassMultiplier;

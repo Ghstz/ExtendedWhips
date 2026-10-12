@@ -8,6 +8,8 @@ namespace ExtendedWhips.Effects
     public static class CustomVehicleNitrous
     {
         public static float BottlePsi { get; private set; } = 1000f; // Full 1000 PSI bottle
+        /// <summary>Torque multiplier (1.0 = off, 1.5 = nitrous active). Applied by VehicleTunerHook.</summary>
+        public static float TorqueBoost { get; private set; } = 1.0f;
         public const float MaxPsi = 1000f;
         public static bool IsPurging { get; private set; } = false;
         public static bool IsBoosting { get; private set; } = false;
@@ -74,7 +76,7 @@ namespace ExtendedWhips.Effects
             if (v == null || asset == null) return;
 
             // 1. Fender CO2 Purge Key [N]
-            bool purgeKey = Input.GetKey(KeyCode.N);
+            bool purgeKey = !Plugin.InputBlocked && Input.GetKey(KeyCode.N);
             if (purgeKey && BottlePsi > 5f)
             {
                 IsPurging = true;
@@ -97,17 +99,14 @@ namespace ExtendedWhips.Effects
             }
 
             // 2. Nitrous Boost [LeftShift] (when moving forward)
-            bool boostKey = (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.Keypad0)) && v.speed > 1.5f;
+            bool boostKey = !Plugin.InputBlocked && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.Keypad0)) && v.speed > 1.5f;
             if (boostKey && BottlePsi > 10f)
             {
                 IsBoosting = true;
                 BottlePsi = Mathf.Max(0f, BottlePsi - 75f * Time.deltaTime);
 
-                // Boost engine torque by +50%
-                if (v.engine != null)
-                {
-                    v.engine.peakRpmTorque *= 1.01f; // High dynamic torque surge
-                }
+                // +50% torque, consumed by VehicleTunerHook.ApplyTuningToInstance every frame
+                TorqueBoost = 1.5f;
 
                 // Exhaust Nitro flame bursts
                 CustomVehicleExhaust.TriggerAfterfire(asset);
@@ -117,6 +116,7 @@ namespace ExtendedWhips.Effects
             }
             else
             {
+                TorqueBoost = 1.0f;
                 IsBoosting = false;
                 ApplyCameraFovWarp(false);
             }
@@ -128,24 +128,34 @@ namespace ExtendedWhips.Effects
             }
         }
 
+        private static bool _fovWarpEngaged = false;
+
         private static void ApplyCameraFovWarp(bool active)
         {
+            if (!active && !_fovWarpEngaged) return; // idle: leave the game's camera alone
+
             try
             {
                 var cam = UnityEngine.Camera.main;
                 if (cam != null)
                 {
-                    if (!_hasCachedFov)
+                    if (!_hasCachedFov || (active && !_fovWarpEngaged))
                     {
-                        _stockFov = cam.fieldOfView;
+                        _stockFov = cam.fieldOfView; // re-sample at boost start so we never use a stale FOV
                         _hasCachedFov = true;
                     }
 
                     float targetFov = active ? (_stockFov + 12f) : _stockFov;
                     cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, targetFov, Time.deltaTime * 6f);
+                    _fovWarpEngaged = active || Mathf.Abs(cam.fieldOfView - _stockFov) > 0.05f;
+                    if (!_fovWarpEngaged) cam.fieldOfView = _stockFov;
+                }
+                else
+                {
+                    _fovWarpEngaged = false;
                 }
             }
-            catch { }
+            catch (System.Exception ex) { Plugin.LogOnce(ex); }
         }
 
         public static void RefillBottle()

@@ -23,9 +23,57 @@ namespace ExtendedWhips
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern IntPtr VirtualAlloc(IntPtr lpAddress, UIntPtr dwSize, uint flAllocationType, uint flProtect);
 
+        [DllImport("kernel32.dll")]
+        private static extern bool FlushInstructionCache(IntPtr hProcess, IntPtr lpBaseAddress, UIntPtr dwSize);
+
+        [DllImport("kernel32.dll")]
+        private static extern IntPtr GetCurrentProcess();
+
         public static void LogMsg(string msg)
         {
             Instance?.Log.LogInfo(msg);
+        }
+
+        private static readonly System.Collections.Generic.HashSet<string> _loggedOnce = new();
+
+        /// <summary>Logs an exception once per unique type+message instead of swallowing it silently every frame.</summary>
+        public static void LogOnce(Exception ex)
+        {
+            string key = ex.GetType().Name + ":" + ex.Message;
+            if (_loggedOnce.Add(key)) Instance?.Log.LogWarning("[ExtendedWhips] Suppressed repeating error: " + ex);
+        }
+
+        /// <summary>True when gameplay hotkeys should be ignored (text field focused or photo mode active).</summary>
+        public static bool InputBlocked => GUIUtility.keyboardControl != 0 || Cockpit.PhotoModeFreecam.IsPhotoModeActive;
+
+        private static readonly KeyCode[] _latchedKeys = { KeyCode.J, KeyCode.H, KeyCode.L };
+        private static readonly float[] _latchTimes = { -1f, -1f, -1f };
+        private static int _lastPumpFrame = -1;
+
+        /// <summary>Call once per rendered frame. Returns false if already pumped this frame.</summary>
+        public static bool PumpInput()
+        {
+            int frame = Time.frameCount;
+            if (frame == _lastPumpFrame) return false;
+            _lastPumpFrame = frame;
+            for (int i = 0; i < _latchedKeys.Length; i++)
+            {
+                if (Input.GetKeyDown(_latchedKeys[i])) _latchTimes[i] = Time.unscaledTime;
+            }
+            return true;
+        }
+
+        /// <summary>True once per physical key press (within 0.25 s), safe to call from physics-step code.</summary>
+        public static bool ConsumeKeyDown(KeyCode key)
+        {
+            for (int i = 0; i < _latchedKeys.Length; i++)
+            {
+                if (_latchedKeys[i] != key) continue;
+                bool hit = _latchTimes[i] >= 0f && Time.unscaledTime - _latchTimes[i] <= 0.25f;
+                _latchTimes[i] = -1f;
+                return hit;
+            }
+            return false;
         }
 
         public override void Load()
@@ -177,16 +225,46 @@ namespace ExtendedWhips
                 hook[5] = 0x90;
 
                 // PAGE_EXECUTE_READWRITE = 0x40
-                if (!VirtualProtect(patchAddress, (UIntPtr)6, 0x40, out uint oldProtect))
+                if (!VirtualProtect(patchAddress, (UIntPtr)8, 0x40, out uint oldProtect))
                 {
                     Log.LogError("[ExtendedWhips] VirtualProtect failed to set memory protection for patch.");
                     return;
                 }
 
-                Marshal.Copy(hook, 0, patchAddress, 6);
-                VirtualProtect(patchAddress, (UIntPtr)6, oldProtect, out _);
+                bool patched = false;
+                bool atomicPossible = false;
+                unsafe
+                {
+                    long addr = (long)patchAddress;
+                    long aligned = addr & ~7L;
+                    int shift = (int)(addr - aligned);
+                    atomicPossible = shift + 6 <= 8;
+                    if (atomicPossible)
+                    {
+                        // Entire 6-byte site lives in one aligned qword -> swap it atomically.
+                        long* p = (long*)aligned;
+                        long mask = 0xFFFFFFFFFFFFL << (shift * 8);
+                        long hookBits = 0;
+                        for (int i = 0; i < 6; i++) hookBits |= (long)hook[i] << ((shift + i) * 8);
 
-                Log.LogInfo($"[ExtendedWhips] Successfully hot-patched GameAssembly.dll RVA 0x25B831 via trampoline at 0x{trampoline.ToInt64():X}!");
+                        for (int attempt = 0; attempt < 4 && !patched; attempt++)
+                        {
+                            long orig = System.Threading.Volatile.Read(ref *p);
+                            long expectedBits = 0;
+                            for (int i = 0; i < 6; i++) expectedBits |= (long)expected[i] << ((shift + i) * 8);
+                            if ((orig & mask) != expectedBits) break; // someone else changed it; bail out to be safe
+                            long updated = (orig & ~mask) | hookBits;
+                            patched = System.Threading.Interlocked.CompareExchange(ref *p, updated, orig) == orig;
+                        }
+                    }
+                }
+
+                if (!patched && !atomicPossible) Marshal.Copy(hook, 0, patchAddress, 6); // non-atomic fallback (unaligned site only)
+
+                VirtualProtect(patchAddress, (UIntPtr)8, oldProtect, out _);
+                FlushInstructionCache(GetCurrentProcess(), patchAddress, (UIntPtr)8);
+
+                Log.LogInfo($"[ExtendedWhips] Successfully hot-patched GameAssembly.dll RVA 0x25B831 via trampoline at 0x{trampoline.ToInt64():X} (atomic={patched})!");
             }
             catch (Exception ex)
             {
@@ -199,6 +277,6 @@ namespace ExtendedWhips
     {
         public const string PLUGIN_GUID = "com.extendedwhips.consim";
         public const string PLUGIN_NAME = "ExtendedWhips";
-        public const string PLUGIN_VERSION = "1.3.0";
+        public const string PLUGIN_VERSION = "2.1.1";
     }
 }

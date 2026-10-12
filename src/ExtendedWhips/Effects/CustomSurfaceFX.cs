@@ -9,6 +9,8 @@ namespace ExtendedWhips.Effects
     {
         private static List<ParticleSystem> _burnoutSmokeSystems = new();
         private static List<ParticleSystem> _roostertailSystems = new();
+        private static float _smokeCarry = 0f;
+        private static float _roostCarry = 0f;
 
         public static void InitializeSurfaceFX(LoadedVehicleAsset asset)
         {
@@ -89,15 +91,21 @@ namespace ExtendedWhips.Effects
                     throttle = v.data.Get(VehiclePhysics.Channel.Input, VehiclePhysics.InputData.Throttle) / 10000f;
                 }
             }
-            catch { }
+            catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
 
             // Check Burnout condition (high throttle, low ground speed)
             bool isBurnout = (throttle > 0.45f && speed < 8.0f);
             if (isBurnout)
             {
-                foreach (var ps in _burnoutSmokeSystems)
+                _smokeCarry += 300f * Time.deltaTime; // ~5 particles/frame @60fps
+                int n = (int)_smokeCarry; _smokeCarry -= n;
+                if (n > 0)
                 {
-                    if (ps != null) ps.Emit(UnityEngine.Random.Range(3, 7));
+                    for (int i = 0; i < _burnoutSmokeSystems.Count; i++)
+                    {
+                        var ps = _burnoutSmokeSystems[i];
+                        if (ps != null) ps.Emit(n);
+                    }
                 }
             }
 
@@ -105,9 +113,15 @@ namespace ExtendedWhips.Effects
             bool isRoosting = (throttle > 0.50f && speed > 2.0f && speed < 22.0f);
             if (isRoosting)
             {
-                foreach (var ps in _roostertailSystems)
+                _roostCarry += 210f * Time.deltaTime; // ~3.5 particles/frame @60fps
+                int n = (int)_roostCarry; _roostCarry -= n;
+                if (n > 0)
                 {
-                    if (ps != null) ps.Emit(UnityEngine.Random.Range(2, 5));
+                    for (int i = 0; i < _roostertailSystems.Count; i++)
+                    {
+                        var ps = _roostertailSystems[i];
+                        if (ps != null) ps.Emit(n);
+                    }
                 }
             }
         }
