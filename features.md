@@ -1,6 +1,6 @@
 # ExtendedWhips - Comprehensive Feature Specification
 
-**ExtendedWhips** transforms *Construction Simulator (2022)* into a high-performance vehicle sandbox with full Forza Motorsport/Horizon-tier tuning and a native 3D GLB vehicle swapping engine running directly inside Unity's IL2CPP runtime via BepInEx 6.
+**ExtendedWhips** transforms *Construction Simulator (2022)* into a high-performance vehicle simulation sandbox with full Forza Motorsport/Horizon-tier tuning, a native 3D GLB vehicle swapping engine, and complete audio/visual simulation running directly inside Unity's IL2CPP runtime via BepInEx 6.
 
 ---
 
@@ -19,7 +19,17 @@
 12. [Dynamic Construction Mud & Pressure Wash Service](#12-dynamic-construction-mud--pressure-wash-service)
 13. [Interactive Showroom & Inspection Mode](#13-interactive-showroom--inspection-mode)
 14. [Motorcycle Counter-Steering Lean Physics](#14-motorcycle-counter-steering-lean-physics)
-15. [Supported Custom Vehicle Roster](#15-supported-custom-vehicle-roster)
+15. [Heavy Transport Escort Strobes & Sirens](#15-heavy-transport-escort-strobes--sirens)
+16. [2-Step Launch Control & Anti-Lag Flame Spitter](#16-2-step-launch-control--anti-lag-flame-spitter)
+17. [Dynamic Black Rubber Skid Marks on Asphalt](#17-dynamic-black-rubber-skid-marks-on-asphalt)
+18. [Cinematic Photo Mode & 6-DOF Drone Freecam](#18-cinematic-photo-mode--6-dof-drone-freecam)
+19. [Formula Drift 70° Angle Kit & Gyro Drift Assist](#19-formula-drift-70-angle-kit--gyro-drift-assist)
+20. [In-Cabin Bluetooth Stereo & Spatial Filtering](#20-in-cabin-bluetooth-stereo--spatial-filtering)
+21. [Instant 1,500 HP EV Powertrain & Cyber Inverter Swap](#21-instant-1500-hp-ev-powertrain--cyber-inverter-swap)
+22. [Controller Haptic Vibration & Feedback](#22-controller-haptic-vibration--feedback)
+23. [Shareable Forza-Style Preset Codes](#23-shareable-forza-style-preset-codes)
+24. [Visual Vehicle Wear, Scuffs & Quick-Repair](#24-visual-vehicle-wear-scuffs--quick-repair)
+25. [Supported Custom Vehicle Roster](#25-supported-custom-vehicle-roster)
 
 ---
 
@@ -37,6 +47,7 @@ Accessible at any time while driving via **[F4]** or **[Insert]**. Organized int
   * **FWD:** Front-wheel drive economy configuration.
   * **AWD:** Full All-Wheel Drive with custom Front/Rear torque split (`0%` to `100%`).
 * **Differential Lock Percentage:** Open, 1.5-way, 2-way, or 100% locked spool.
+* **⚡ 1,500 HP Cyber EV Swap:** Instant flat torque delivery, 1-speed transmission, regenerative braking, and electric inverter whine.
 
 ### Tab 2: Transmission & Gearing
 * **Final Drive Ratio:** `2.00` (high top speed cruise) to `6.50` (short-ratio drag launch acceleration).
@@ -53,7 +64,8 @@ Accessible at any time while driving via **[F4]** or **[Insert]**. Organized int
 * **Compound Selection:** Street Radial, Semi-Slick Track, Drag Radial, Mud-Terrain (M/T), All-Terrain (A/T), Drift Hard Compound.
 * **Forward Grip Factor:** `0.5x` to `3.0x` longitudinal traction.
 * **Sidewall Lateral Stiffness:** Sharp cornering turn-in or progressive break-away angles.
-* **Tire Width & Rolling Radius Scale:** Visually and physically scales contact patches.
+* **Wisefab 70° Steering Angle Kit:** Unlocks extreme 68°–70° steering lock for deep drift angles.
+* **Gyro Drift Assist:** Gyroscopic counter-steer torque stabilization preventing spinouts.
 
 ### Tab 5: Brakes & Downforce
 * **Braking Torque:** `1,000 Nm` to `25,000 Nm` stopping power with zero brake fade.
@@ -68,18 +80,22 @@ Accessible at any time while driving via **[F4]** or **[Insert]**. Organized int
 
 ### Tab 7: Whips & Customization Studio
 * 1-Click GLB vehicle body swap selector.
-* Stance air ride selector.
-* Livery selector.
-* Tow mode toggle.
+* Stance air ride selector (`Slammed`, `Street`, `Lifted`).
+* Livery selector (OEM & Iconic race liveries).
+* Tow mode toggle (+120% low-end torque & locked spool).
 * Showroom inspection toggles (open/close hood, doors, trunk).
-* Pressure wash vehicle service.
+* Pressure wash & detailing service.
+* 🚨 Emergency escort strobes (`[J]`) and electronic sirens (`[H]`).
+* 🎵 In-cabin Bluetooth stereo with spatial low-pass filtering.
+* 💾 Forza shareable tune code generator & importer.
+* 📸 Cinematic Photo Drone Mode (`[F9]`).
+* 💥 Quick repair & detail for collision scuffs and scratches.
 
 ---
 
 ## 2. Runtime 3D GLB Vehicle Reskinning Engine
 
-Unlike traditional model replacements that only change visual meshes:
-* **Native VPWheelCollider Parenting:** Custom wheel meshes hook directly onto `VPWheelCollider.wheelTransform`. The custom wheels physically compress up into fenders over rocks, gravel mounds, and potholes.
+* **Native VPWheelCollider Parenting:** Custom wheel meshes hook directly onto `VPWheelCollider.wheelTransform`. Wheels physically compress up into fenders over rocks, gravel mounds, and potholes.
 * **Separated Calipers vs. Spinning Rims:** Brake calipers remain bolted to the steering knuckle, turning left and right with steering inputs while the rims, spokes, and rubber spin through them.
 * **Automatic Dimension & Contact Normalization:** Custom vehicles are automatically analyzed at load time to calculate track width, wheelbase, and hub vertical offsets, ensuring tires sit flush on the ground with zero clipping.
 
@@ -87,7 +103,6 @@ Unlike traditional model replacements that only change visual meshes:
 
 ## 3. Procedural Engine Audio Synthesizer
 
-Engine audio dynamically synthesizes real-time acoustic layers directly tied to the VehiclePhysics Pro engine data channel:
 * **Supercharger Whine (1971 Cuda & 2023 Raptor R):** Real-time sine-wave frequency modulator scaling with engine RPM ($f = 350\text{ Hz} \to 3,200\text{ Hz}$) and throttle opening.
 * **Twin-Turbo Spool & Blow-Off Valve (R34 GT-R & M4 GT3):** Turbo hiss builds under sustained boost; abruptly lifting off throttle triggers an authentic atmospheric blow-off valve sneeze/flutter.
 * **High-RPM Screamer (Kawasaki Ninja H2 & BMW S1000RR):** Smoothly pitch-shifts the engine sound up to 14,000 RPM for authentic literbike acoustics.
@@ -134,10 +149,7 @@ Located in **Tab 6 [TELEMETRY]**:
 
 ## 8. Cockpit First-Person Sync & Sweeping Gauges
 
-* **Dynamic Eye-Point:** Pressing **[C]** automatically positions the camera inside the custom vehicle:
-  * Muscle & Sports Cars: Low, aggressive racing seating looking over the shaker hood / hood scoop.
-  * Trucks: Elevated commanding viewpoint over wide hoods.
-  * Motorcycles: Tucked handlebar / windscreen visor view.
+* **Dynamic Eye-Point:** Pressing **[C]** automatically positions the camera inside the custom vehicle.
 * **Sweeping Gauge Needles:** Speedometer needle sweeps 0–240 km/h and tachometer needle sweeps 0–8,000 RPM in real time.
 * **Interior Steering Wheel Sync:** Rotates in the driver's hands matching real-time steering angle.
 
@@ -151,25 +163,22 @@ Located in **Tab 6 [TELEMETRY]**:
 
 ## 10. In-Game Paint Studio & Iconic Liveries
 
-### Custom Paint Finishes
-* **Shades:** OEM palettes including Nissan Bayside Blue, Plymouth Tor-Red & Plum Crazy, BMW Alpine White & Isle of Man Green, Ford Code Orange.
+* **OEM Palettes:** Nissan Bayside Blue, Plymouth Tor-Red & Plum Crazy, BMW Alpine White & Isle of Man Green, Ford Code Orange.
 * **Surface Finishes:** Factory Gloss, Satin / Matte, Metallic Flake, and Raw Carbon Fiber.
 * **Window Tint:** Clear Glass to 5% Limo Privacy Tint.
-
-### Iconic Liveries
-* **Nissan R34 GT-R:** *2 Fast 2 Furious* Silver base with dual blue racing stripes.
-* **1971 Plymouth Cuda:** *426 HEMI Billboard* rear quarter-panel graphics with satin black hood.
-* **BMW M4 GT3:** Official *M Motorsport* Tricolor racing livery.
-* **Ford F-150 Raptor R:** *Fox Factory Baja Trophy* digital camo wrap.
+* **Iconic Liveries:**
+  * **Nissan R34 GT-R:** *2 Fast 2 Furious* Silver base with dual blue racing stripes.
+  * **1971 Plymouth Cuda:** *426 HEMI Billboard* rear quarter-panel graphics with satin black hood.
+  * **BMW M4 GT3:** Official *M Motorsport* Tricolor racing livery.
+  * **Ford F-150 Raptor R:** *Fox Factory Baja Trophy* digital camo wrap.
 
 ---
 
 ## 11. On-The-Fly Air Ride Hydraulics (Stance)
 
-Instant 3-way height selector in Tab 7:
-1. **[Slammed / Stance]:** Drops the chassis to within an inch of the asphalt for car meets and construction site photo mode.
-2. **[Street / Track]:** Balanced center-of-gravity for high-speed grip and daily driving.
-3. **[Overland / Lifted]:** Raises clearance by +0.12m for deep mud, trenches, and rock crawling.
+* **[Slammed / Stance]:** Drops the chassis to within an inch of the asphalt for car meets and construction site photo mode.
+* **[Street / Track]:** Balanced center-of-gravity for high-speed grip and daily driving.
+* **[Overland / Lifted]:** Raises clearance by +0.12m for deep mud, trenches, and rock crawling.
 
 ---
 
@@ -182,22 +191,107 @@ Instant 3-way height selector in Tab 7:
 
 ## 13. Interactive Showroom & Inspection Mode
 
-* Separate toggles in Tab 7 allow opening and closing individual vehicle parts:
-  * **Pop Hood:** Inspect detailed 3D engine bays (426 HEMI V8, twin-turbo RB26DETT, BMW M TwinPower Turbo, Raptor R 5.2L Supercharged V8).
-  * **Open Doors:** For photo mode, walkarounds, or job site staging.
-  * **Open Trunk / Tailgate:** Lower truck tailgates or open trunks.
+* **Pop Hood:** Inspect detailed 3D engine bays (426 HEMI V8, twin-turbo RB26DETT, BMW M TwinPower Turbo, Raptor R 5.2L Supercharged V8).
+* **Open Doors:** For photo mode, walkarounds, or job site staging.
+* **Open Trunk / Tailgate:** Lower truck tailgates or open trunks.
 
 ---
 
 ## 14. Motorcycle Counter-Steering Lean Physics
 
-* Dedicated physics calculation for the **Kawasaki Ninja H2** and **BMW S1000RR**:
-  * Body tilts into corners up to **42°** based on lateral cornering acceleration ($G_{lat} = v^2 / R$).
-  * Automatic kickstand / vertical stabilization when coming to a complete stop (0 mph).
+* Body tilts into corners up to **42°** based on lateral cornering acceleration ($G_{lat} = v^2 / R$).
+* Automatic kickstand / vertical stabilization when coming to a complete stop (0 mph).
 
 ---
 
-## 15. Supported Custom Vehicle Roster
+## 15. Heavy Transport Escort Strobes & Sirens
+
+* **Amber Escort Strobes (`[J]`):** High-intensity roof cab beacon lightbars and front grille warning lights on trucks (Sierra 2500HD, Raptor R, Blazer) for escorting oversized equipment.
+* **Police / Pace Car Strobes:** Alternating red and blue emergency LEDs behind the windshield and grille for sports cars (R34 GT-R, M4 GT3).
+* **Electronic Siren (`[H]`):** Dual-tone acoustic wail and yelp siren for clearing busy job-site exits.
+
+---
+
+## 16. 2-Step Launch Control & Anti-Lag Flame Spitter
+
+* **Launch Limiter:** Holding Handbrake (`[Space]`) while pinning the throttle holds engine RPM precisely at **4,500 RPM**.
+* **Rapid-Fire Anti-Lag:** Machine-gun staccato backfire audio accompanied by rapid-fire blue and orange exhaust flame bursts.
+* **Slingshot Launch:** Dropping the handbrake launches the vehicle forward with maximum boost and immediate forward thrust.
+
+---
+
+## 17. Dynamic Black Rubber Skid Marks on Asphalt
+
+* Tire contact points lay down realistic dark rubber skidmark ribbons during high-rpm burnouts, aggressive drift slides, or hard brake lockups.
+* Skidmarks persist on the road surface for 25 seconds before smoothly dissipating.
+
+---
+
+## 18. Cinematic Photo Mode & 6-DOF Drone Freecam
+
+* **Time Freeze (`[F9]`):** Instantly freezes world physics and vehicle motion.
+* **Smooth 6-DOF Drone Flight:**
+  * `W / A / S / D`: Horizontal translation
+  * `Q / E`: Vertical altitude adjustment
+  * `Right Mouse Button Drag`: 360° pitch and yaw look
+  * `Z / X`: Dutch camera roll tilt
+  * `Left Shift`: Sprint flight speed
+* **Photo Controls GUI:**
+  * Focal Length / FOV slider (15mm ultra-wide to 110mm telephoto)
+  * Camera roll angle slider with instant reset
+  * Drone speed slider
+  * `[H]` or `[Tab]` hotkey to hide/show UI for clean 4K screenshots.
+
+---
+
+## 19. Formula Drift 70° Angle Kit & Gyro Drift Assist
+
+* **Wisefab Angle Kit:** Increases front wheel steering lock from 35° to an extreme **68°–70°** for reverse-entry drift angles.
+* **Gyro Drift Assist:** Calculates dynamic chassis drift angles and injects stabilizing counter-steer torque to keep high-angle slides controllable on both keyboard and gamepads without spinning out.
+
+---
+
+## 20. In-Cabin Bluetooth Stereo & Spatial Filtering
+
+* Scans `BepInEx/plugins/ExtendedWhips/Music/` for `.mp3`, `.wav`, or `.ogg` tracks (includes procedural chill synthwave fallback).
+* **Spatial Acoustic Filtering:**
+  * In cockpit view (`[C]`), audio plays with uncompressed frequency response (22,000 Hz) and deep bass.
+  * In exterior third-person view, dynamic low-pass filtering attenuates high frequencies down to 1,600 Hz, simulating muffled audio leaking out through glass windows.
+* Live track title readout on the telemetry HUD overlay.
+
+---
+
+## 21. Instant 1,500 HP EV Powertrain & Cyber Inverter Swap
+
+* **Instant Flat Torque Curve:** Injects 1,500 Nm of electric torque instantly from 0 RPM through top speed.
+* **Cyber Inverter Whine Synthesizer:** Pure electric high-frequency carrier wave whose pitch and volume scale directly with vehicle velocity.
+* **One-Pedal Regenerative Braking:** Lifting off the throttle applies smooth decelerating motor braking torque without touching the mechanical brake pedal.
+
+---
+
+## 22. Controller Haptic Vibration & Feedback
+
+* **Engine Redline Vibration:** High-frequency motor rumble when reaching redline or holding 2-step launch control.
+* **Tire Slip Haptics:** Directional haptic buzzing when tires break traction during drifts or high-slip launches.
+
+---
+
+## 23. Shareable Forza-Style Preset Codes
+
+* **1-Click Share Code Generator:** Encodes any vehicle's tuning profile into an alphanumeric code (e.g. `WHIP-4E14-1A440A`).
+* **Instant Code Importer:** Paste or type any share code into the text field in Tab 7 and hit `[Apply Code]` to immediately load and apply the entire setup.
+
+---
+
+## 24. Visual Vehicle Wear, Scuffs & Quick-Repair
+
+* Detects high-G collisions and impacts against obstacles, guardrails, and heavy construction equipment.
+* Accumulates visual wear, scuffing clear-coat gloss and dulling metallic reflections.
+* **`[Quick Repair & Detail]`:** Instantly buffs scratches, restores factory mirror gloss, and resets panel alignments.
+
+---
+
+## 25. Supported Custom Vehicle Roster
 
 | Vehicle Name | Category | Engine Spec | Signature Features |
 | :--- | :--- | :--- | :--- |

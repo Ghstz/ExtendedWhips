@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.0] - 2026-10-12
+
+### The Pro Driver & Logistics Expansion
+This update introduces heavy equipment transport escort lighting, 2-step launch control, dynamic asphalt skid marks, cinematic drone photo mode, Formula Drift 70° angle geometry, in-cabin Bluetooth stereo with acoustic filtering, 1,500 HP cyber EV swaps, controller haptics, shareable Forza tuning codes, and vehicle scratch/wear detailing.
+
+#### Added
+- **Heavy Transport Escort Strobes & Sirens (`CustomEmergencyLighting.cs`):**
+  - High-intensity amber roof lightbars and grille flashers for trucks (`[J]`).
+  - Red & blue police/pace car strobes for track and sports cars.
+  - Electronic dual-tone acoustic wail & yelp siren (`[H]`).
+- **2-Step Launch Control & Anti-Lag Flame Spitter (`LaunchControlSystem.cs`):**
+  - 4,500 RPM launch limiter when holding handbrake (`[Space]`) and full throttle at 0 mph.
+  - Rapid-fire backfire popping audio and staccato blue/orange exhaust fireballs.
+  - Slingshot launch forward boost upon handbrake release.
+- **Dynamic Black Rubber Skid Marks (`DynamicSkidmarks.cs`):**
+  - Persistent tire rubber trails laid down on asphalt during burnouts, high-angle drifts, and locked brakes.
+- **Cinematic Photo Mode & 6-DOF Drone Freecam (`PhotoModeFreecam.cs`):**
+  - Physics and time freeze toggled with `[F9]`.
+  - Full 6-DOF drone movement (`WASD`, `QE` altitude, right-mouse look, `ZX` roll).
+  - Configurable focal length / FOV (15mm to 110mm), roll tilt, and `[H]` UI hide for clean 4K captures.
+- **Formula Drift 70° Steering Angle Kit & Gyro Assist (`DriftAssistSystem.cs`):**
+  - Wisefab 68°–70° extreme steering lock toggle in Tab 4.
+  - Gyro counter-steer torque stabilization preventing spinouts during deep reverse entries.
+- **In-Cabin Bluetooth Stereo & Spatial Filtering (`InCabinStereo.cs`):**
+  - Local music playback from `BepInEx/plugins/ExtendedWhips/Music/` with procedural synthwave backup.
+  - Spatial low-pass filter: 22,000 Hz hi-fi in cockpit view vs 1,600 Hz muffled interior bleed in exterior view.
+- **Instant 1,500 HP Cyber EV Powertrain Swap (`EvPowertrainSystem.cs`):**
+  - Instant flat 1,500 Nm torque from 0 RPM in Tab 1.
+  - Cyber electric inverter whine synthesizer scaling with speed.
+  - One-pedal regenerative motor braking when off throttle.
+- **Controller Haptic Vibration & Feedback (`ControllerHaptics.cs`):**
+  - Engine redline vibration and tire break-away slip haptics for gamepads.
+- **Shareable Forza-Style Tuning Codes (`TuningPresetCodeSystem.cs`):**
+  - 1-Click `WHIP-XXXX-XXXX` code generator and importer in Tab 7.
+- **Visual Vehicle Wear, Scratches & Quick-Repair (`VehicleWearSystem.cs`):**
+  - Collision impact detection accumulating paint scuffs and dulling metallic clear-coat reflections.
+  - `[Quick Repair & Detail]` button in Tab 7 restoring factory mirror finish.
+
+---
+
 ## [2.0.0] - 2026-10-12
 
 ### The Ultimate Simulation Update
@@ -114,3 +154,4 @@ This major release transforms ExtendedWhips into a complete automotive simulatio
 ### Initial Release
 - Basic vehicle tuning framework for *Construction Simulator (2022)* using BepInEx 6 IL2CPP.
 - Basic torque, speed limiter, and suspension height modifiers.
+

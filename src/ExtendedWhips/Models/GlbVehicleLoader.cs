@@ -5,6 +5,7 @@ using System.Linq;
 using BepInEx;
 using UnityEngine;
 using ExtendedWhips.Effects;
+using ExtendedWhips.Tuning;
 
 namespace ExtendedWhips.Models
 {
@@ -616,12 +617,15 @@ namespace ExtendedWhips.Models
                 rootObj.transform.localPosition = new Vector3(spec.CenterOffsetX, spec.HeightOffset, spec.CenterOffsetZ);
                 rootObj.transform.localRotation = Quaternion.Euler(0f, spec.RotationY, 0f);
 
-                // Initialize Lights, Exhaust FX, Audio Synthesizer, Nitrous, and Surface FX
+                // Initialize Lights, Exhaust FX, Audio Synthesizer, Nitrous, Surface FX, Strobes, and Stereo
                 CustomVehicleLights.InitializeLights(asset);
                 CustomVehicleExhaust.InitializeExhaust(asset);
                 CustomVehicleAudio.InitializeAudio(asset);
                 CustomVehicleNitrous.InitializeNitrous(asset);
                 CustomSurfaceFX.InitializeSurfaceFX(asset);
+                CustomEmergencyLighting.InitializeEmergencyLighting(asset);
+                InCabinStereo.InitializeStereo(asset);
+                EvPowertrainSystem.InitializeEvAudio(asset);
 
                 Plugin.LogMsg($"[GlbVehicleLoader] Successfully loaded '{spec.DisplayName}' (Body: {asset.BodyObjects.Count}, FL: {asset.FrontLeftWheels.Count}, Calipers: {asset.FrontLeftCalipers.Count + asset.FrontRightCalipers.Count}, Doors: {asset.LeftDoorTransforms.Count + asset.RightDoorTransforms.Count}, Hood: {asset.HoodTransforms.Count}).");
                 return asset;

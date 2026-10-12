@@ -169,6 +169,8 @@ namespace ExtendedWhips.Hooks
                 existingState.AreDoorsOpen = false;
                 existingState.IsTrunkOpen = false;
 
+                DynamicSkidmarks.InitializeSkidmarks(v, asset);
+
                 CockpitCameraAligner.ApplyCockpitOffset(v, modelSpec);
 
                 var profile = VehicleTunerHook.Profile;
@@ -368,6 +370,34 @@ namespace ExtendedWhips.Hooks
 
             // 14. Showroom & Inspection Panel Animations
             UpdateShowroomPanels(state, asset);
+
+            // 15. Emergency & Escort Strobes + Sirens
+            CustomEmergencyLighting.UpdateEmergencyLights(v, asset);
+
+            // 16. 2-Step Launch Control & Anti-Lag
+            LaunchControlSystem.UpdateLaunchControl(v, asset);
+
+            // 17. Dynamic Skidmarks on Asphalt
+            DynamicSkidmarks.UpdateSkidmarks(v);
+
+            // 18. Formula Drift 70° Angle Kit & Gyro Assist
+            DriftAssistSystem.UpdateDriftAssist(v);
+
+            // 19. In-Cabin Stereo with Acoustic Filtering
+            bool isCockpit = (v.GetComponentInChildren<Wb.Camera.WbMachineFirstPersonCameraBehaviour>()?.enabled == true);
+            InCabinStereo.UpdateStereo(v, isCockpit);
+
+            // 20. Instant EV Powertrain & Cyber Sound
+            EvPowertrainSystem.UpdateEvPowertrain(v);
+
+            // 21. Controller Haptic Feedback
+            ControllerHaptics.UpdateHaptics(v);
+
+            // 22. Visual Wear & Scratches
+            VehicleWearSystem.UpdateWear(v, asset);
+
+            // 23. Cinematic Photo Drone Mode
+            PhotoModeFreecam.UpdateFreecam();
         }
 
         private static void UpdateActiveAerodynamics(VPVehicleController v, VehicleSkinState state, LoadedVehicleAsset asset)
@@ -696,6 +726,19 @@ namespace ExtendedWhips.Hooks
 
                 VehicleTunerHook.ApplyPreset(TuningPreset.Stock);
                 ExtendedWhipsUI.ShowToast("OEM RESTORED", "Reinstalled factory stock body and OEM visuals.");
+            }
+        }
+
+        public static void QuickRepairActiveVehicle()
+        {
+            var v = VehicleTunerHook.CurrentVehicle;
+            if (v == null) return;
+            int id = v.GetInstanceID();
+
+            if (_skinsByInstance.TryGetValue(id, out var state) && state.LoadedAsset != null)
+            {
+                VehicleWearSystem.QuickRepairAndDetail(state.LoadedAsset);
+                ExtendedWhipsUI.ShowToast("VEHICLE DETAILED", "Body scratches buffed & panels restored to mint condition!");
             }
         }
     }

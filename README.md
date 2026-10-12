@@ -22,6 +22,15 @@
 * 🏍️ **Motorcycle Counter-Steering Physics:** Realistic lateral-G chassis lean (up to 42°) and automatic kickstand stabilization for superbikes.
 * 🎨 **Paint Studio & Iconic Liveries:** OEM colors, gloss/matte/carbon finishes, window tint, and iconic livery presets (*2 Fast 2 Furious* R34, *426 HEMI Billboard*, *BMW M Motorsport*, *Fox Baja Trophy*).
 * 🪟 **Active Aero & Interactive Cockpit:** Deployable high-speed airbrake, sweeping gauge needles (speedometer/tachometer), animated steering wheel, and openable hood/doors/tailgate.
+* 🚨 **Heavy Escort Strobes & Sirens:** Roof lightbars and grille flashers (`[J]`) with dual-tone wail & yelp electronic sirens (`[H]`).
+* 🔥 **2-Step Launch Control & Anti-Lag:** 4,500 RPM launch limiter on Handbrake (`[Space]`) + full throttle with machine-gun backfire pops and exhaust flames.
+* 🛞 **Dynamic Asphalt Rubber Skid Marks:** Burnouts and drifts lay down persistent tire marks on the road surface.
+* 📸 **Cinematic Drone Photo Mode (`[F9]`):** Freeze-time 6-DOF drone freecam with adjustable focal length / FOV, roll tilt, and clean 4K screenshot capture.
+* 🏎️ **Wisefab 70° Angle Kit & Gyro Drift Assist:** Extreme drift steering lock and gyro counter-steer stabilization.
+* 🎵 **In-Cabin Bluetooth Stereo:** Local audio playback with spatial acoustic low-pass filtering between cockpit and exterior cameras.
+* ⚡ **1,500 HP Cyber EV Swap:** Instant flat electric torque, direct drive, inverter whine, and one-pedal regenerative motor braking.
+* 💾 **Shareable Forza-Style Tune Codes:** 1-Click `WHIP-XXXX-XXXX` tune code generator and instant code applicator.
+* 💥 **Vehicle Wear & Quick Detail:** Physical collision scuffs and scratches with instant showroom quick-repair.
 * 🧼 **Dynamic Mud & Pressure Wash:** Vehicles accumulate realistic job-site mud that can be detailed back to showroom shine with one click.
 
 ---
@@ -33,8 +42,12 @@
 | **`[F4]`** or **`[Insert]`** | **Toggle Vehicle Tuning Menu** | Opens the full 7-tab configuration suite |
 | **`[F6]`** | **Toggle Live Telemetry HUD** | Shows speed, gear, RPM bar, torque, and NOS PSI |
 | **`[F8]`** | **Reset Vehicle to Factory Stock** | Instantly restores default physics and specs |
+| **`[F9]`** | **Cinematic Photo Mode / Freecam** | Freezes time; WASD drone flight, FOV & roll controls |
 | **`[N]`** | **Nitrous CO2 Fender Purge** | Shoots twin high-pressure steam plumes from cowl |
 | **`[LeftShift]`** | **Nitrous Oxide Boost** | Instant +50% torque surge + blue flame exhaust |
+| **`[Space] + [W]`** | **2-Step Launch Control** | Holds 4,500 RPM limiter + rapid-fire anti-lag flames |
+| **`[J]`** | **Toggle Escort Strobes** | Amber roof beacons (trucks) / Red & Blue LEDs (sports) |
+| **`[H]`** | **Toggle Emergency Siren** | Electronic dual-tone wail & yelp siren |
 | **`[L]`** | **Vehicle Headlights / High Beams** | Projector light beams and rear taillight bloom |
 | **`[C]`** | **Cycle Camera / Cockpit View** | Aligns first-person eye-line inside custom cabin |
 

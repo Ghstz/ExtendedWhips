@@ -9,6 +9,7 @@ using ExtendedWhips.Tuning;
 using ExtendedWhips.Spawning;
 using ExtendedWhips.Models;
 using ExtendedWhips.Effects;
+using ExtendedWhips.Cockpit;
 
 namespace ExtendedWhips.UI
 {
@@ -61,6 +62,7 @@ namespace ExtendedWhips.UI
 
         private static readonly string[] _tabRow1 = { "[PRESETS]", "[ENGINE]", "[GEARING & DIFF]", "[SUSPENSION]" };
         private static readonly string[] _tabRow2 = { "[TIRES & ALIGN]", "[BRAKES & CHASSIS]", "[TELEMETRY]", "[WHIPS]" };
+        private static string _shareCodeInput = "";
 
         // Toast notification state
         private static string _toastTitle = "";
@@ -151,6 +153,9 @@ namespace ExtendedWhips.UI
             {
                 try { DrawMenuWindow(); } catch { }
             }
+
+            // Draw Photo Mode GUI Overlay
+            try { PhotoModeFreecam.DrawPhotoModeGui(); } catch { }
         }
 
         // ==========================================
@@ -193,8 +198,8 @@ namespace ExtendedWhips.UI
             var v = VehicleTunerHook.CurrentVehicle;
             if (v == null) return;
 
-            float width = 320f;
-            float height = 225f;
+            float width = 330f;
+            float height = 255f;
             float x = Screen.width - width - 20f;
             float y = 20f;
 
@@ -245,6 +250,7 @@ namespace ExtendedWhips.UI
                     TuningPreset.HyperInsane => "HYPER OVERKILL",
                     _ => "CUSTOM TUNED"
                 };
+                if (EvPowertrainSystem.IsEvSwapActive) presetName += " | ⚡ EV CYBER";
                 GUILayout.Label($"<b>Mode: <color={presetColor}>[{presetName}]</color></b>");
 
                 // Speed & Gear
@@ -291,12 +297,30 @@ namespace ExtendedWhips.UI
                                    nosPsi > 100f ? "<color=#00FF88>ARMED [LShift]</color>" : "<color=#FF3333>EMPTY</color>";
                 GUILayout.Label($"<b>NOS:</b> {nosPsi:F0} PSI <color=#00E5FF>[{nosBarStr}]</color> {nosStatus}");
 
-                // Torque & Steer
+                // Torque & Steer calculations
                 float torque = v.engine != null ? v.engine.peakRpmTorque : 0f;
                 float steerAngle = v.steering != null ? v.steering.maxSteerAngle : 35f;
                 float estHp = torque * (rpm * 0.1047f) / 745.7f;
                 if (estHp < 0) estHp = 0;
-                GUILayout.Label($"<b>Torque:</b> {torque:N0} Nm ({VehicleTunerHook.TorqueMultiplier:F1}x) ~ {estHp:N0} HP");
+
+                // System Active Indicators
+                if (LaunchControlSystem.IsLaunchControlActive)
+                {
+                    GUILayout.Label("<b><color=#FF0055>>> [2-STEP LAUNCH ARMED: 4,500 RPM]</color></b>");
+                }
+                else if (CustomEmergencyLighting.IsStrobesActive)
+                {
+                    string sirenTxt = CustomEmergencyLighting.IsSirenActive ? " + SIREN [H]" : "";
+                    GUILayout.Label($"<b><color=#FFAA00>>> [ESCORT STROBES ACTIVE{sirenTxt}]</color></b>");
+                }
+                else if (InCabinStereo.IsPlaying)
+                {
+                    GUILayout.Label($"<b><color=#00FFCC>♫ {InCabinStereo.CurrentTrackTitle}</color></b>");
+                }
+                else
+                {
+                    GUILayout.Label($"<b>Torque:</b> {torque:N0} Nm ({VehicleTunerHook.TorqueMultiplier:F1}x) ~ {estHp:N0} HP");
+                }
                 GUILayout.Label($"<b>Steer Lock:</b> {steerAngle:F0} deg | <b>Final Drive:</b> {(v.differential != null ? v.differential.gearRatio : 3.5f):F2}");
             }
             finally
@@ -527,6 +551,16 @@ namespace ExtendedWhips.UI
             // 6. Engine Compression Braking
             p.CompressionBrakingMultiplier = DrawSliderWithNudge("Compression / Jake Brake", p.CompressionBrakingMultiplier, 0.1f, 4.0f, "F1", "x", 0.1f,
                 p.CompressionBrakingMultiplier < 0.5f ? "Free Coasting (Minimal Drag)" : "Heavy Decel Retarder Drag");
+
+            GUILayout.Space(8);
+
+            // 7. Instant EV Powertrain & Cyber Sound Swap
+            GUI.backgroundColor = EvPowertrainSystem.IsEvSwapActive ? new Color(0.0f, 0.9f, 0.8f, 1.0f) : new Color(0.2f, 0.3f, 0.4f, 1.0f);
+            if (GUILayout.Button(EvPowertrainSystem.IsEvSwapActive ? "[ ⚡ 1,500 HP CYBER EV SWAP: ACTIVE ]" : "[ ⚡ SWAP TO 1,500 HP CYBER EV MOTOR ]", GUILayout.Height(30)))
+            {
+                EvPowertrainSystem.IsEvSwapActive = !EvPowertrainSystem.IsEvSwapActive;
+                ShowToast("POWERTRAIN SWAP", EvPowertrainSystem.IsEvSwapActive ? "Installed Instant-Torque 1,500 HP Cyber EV Motor & Inverter" : "Restored Internal Combustion Engine");
+            }
         }
 
         // ==========================================
@@ -662,6 +696,25 @@ namespace ExtendedWhips.UI
             // 5. Lateral Drift Slip
             p.TireDriftSlipMultiplier = DrawSliderWithNudge("Lateral Drift / Slide Grip", p.TireDriftSlipMultiplier, 0.3f, 2.5f, "F2", "x", 0.1f,
                 p.TireDriftSlipMultiplier < 0.7f ? "Drift Spec (Slides Effortlessly)" : p.TireDriftSlipMultiplier > 1.8f ? "Slot-Car Track Stiction" : "Normal Grip");
+
+            GUILayout.Space(8);
+
+            // 6. Formula Drift 70° Angle Kit & Gyro Drift Assist
+            GUILayout.BeginHorizontal();
+            GUI.backgroundColor = DriftAssistSystem.IsAngleKitEnabled ? new Color(0.0f, 0.85f, 1.0f) : new Color(0.2f, 0.3f, 0.4f);
+            if (GUILayout.Button(DriftAssistSystem.IsAngleKitEnabled ? "[ Wisefab 70° Angle Kit: ON ]" : "[ Wisefab 70° Angle Kit: OFF ]", GUILayout.Height(28)))
+            {
+                DriftAssistSystem.IsAngleKitEnabled = !DriftAssistSystem.IsAngleKitEnabled;
+                if (DriftAssistSystem.IsAngleKitEnabled) p.CustomSteerAngle = 68f;
+                ShowToast("ANGLE KIT", DriftAssistSystem.IsAngleKitEnabled ? "Installed Formula Drift 68°–70° Steering Angle Knuckles" : "Restored Standard Steering Lock");
+            }
+
+            GUI.backgroundColor = DriftAssistSystem.IsGyroAssistEnabled ? new Color(0.0f, 0.8f, 0.4f) : new Color(0.4f, 0.2f, 0.2f);
+            if (GUILayout.Button(DriftAssistSystem.IsGyroAssistEnabled ? "[ Gyro Drift Assist: ON ]" : "[ Gyro Drift Assist: OFF ]", GUILayout.Height(28)))
+            {
+                DriftAssistSystem.IsGyroAssistEnabled = !DriftAssistSystem.IsGyroAssistEnabled;
+            }
+            GUILayout.EndHorizontal();
         }
 
         // ==========================================
@@ -1031,6 +1084,62 @@ namespace ExtendedWhips.UI
                 if (GUILayout.Button("[PRESSURE WASH & DETAIL]", GUILayout.Height(26)))
                 {
                     VehicleReskinManager.WashActiveVehicle(v);
+                }
+                GUI.backgroundColor = new Color(0.25f, 0.75f, 0.35f);
+                if (GUILayout.Button("[QUICK REPAIR & DETAIL]", GUILayout.Height(26)))
+                {
+                    VehicleReskinManager.QuickRepairActiveVehicle();
+                }
+                GUILayout.EndHorizontal();
+                GUILayout.Space(6);
+
+                // --- EMERGENCY STROBES & SIREN ---
+                GUILayout.BeginHorizontal();
+                GUI.backgroundColor = CustomEmergencyLighting.IsStrobesActive ? new Color(1.0f, 0.65f, 0.0f) : new Color(0.3f, 0.35f, 0.4f);
+                if (GUILayout.Button(CustomEmergencyLighting.IsStrobesActive ? "[🚨 ESCORT STROBES: ON [J]]" : "[🚨 ESCORT STROBES: OFF [J]]", GUILayout.Height(26)))
+                {
+                    CustomEmergencyLighting.ToggleStrobes();
+                }
+                GUI.backgroundColor = CustomEmergencyLighting.IsSirenActive ? new Color(0.9f, 0.2f, 0.2f) : new Color(0.3f, 0.35f, 0.4f);
+                if (GUILayout.Button(CustomEmergencyLighting.IsSirenActive ? "[🔊 SIREN: ON [H]]" : "[🔊 SIREN: OFF [H]]", GUILayout.Height(26)))
+                {
+                    CustomEmergencyLighting.ToggleSiren();
+                }
+                GUI.backgroundColor = new Color(0.0f, 0.85f, 1.0f);
+                if (GUILayout.Button("[📸 PHOTO MODE [F9]]", GUILayout.Height(26)))
+                {
+                    PhotoModeFreecam.TogglePhotoMode();
+                }
+                GUILayout.EndHorizontal();
+                GUILayout.Space(6);
+
+                // --- IN-CABIN BLUETOOTH STEREO ---
+                GUILayout.BeginHorizontal();
+                GUI.backgroundColor = InCabinStereo.IsPlaying ? new Color(0.0f, 0.9f, 0.6f) : new Color(0.3f, 0.35f, 0.4f);
+                if (GUILayout.Button(InCabinStereo.IsPlaying ? "[♫ STEREO: PLAYING]" : "[♫ STEREO: PAUSED]", GUILayout.Width(170), GUILayout.Height(24)))
+                {
+                    InCabinStereo.TogglePlayback();
+                }
+                GUILayout.Label($"<b>Vol:</b> {InCabinStereo.Volume * 100f:F0}%", GUILayout.Width(65));
+                InCabinStereo.Volume = GUILayout.HorizontalSlider(InCabinStereo.Volume, 0f, 1.0f);
+                GUILayout.EndHorizontal();
+                GUILayout.Space(6);
+
+                // --- FORZA SHARE CODES ---
+                GUILayout.BeginHorizontal();
+                GUI.backgroundColor = new Color(0.2f, 0.45f, 0.7f);
+                if (GUILayout.Button("[Generate Share Code]", GUILayout.Width(170), GUILayout.Height(24)))
+                {
+                    string code = TuningPresetCodeSystem.GenerateShareCode(VehicleTunerHook.Profile);
+                    _shareCodeInput = code;
+                    ShowToast("SHARE CODE", $"Generated Tune Code: {code}");
+                }
+                _shareCodeInput = GUILayout.TextField(_shareCodeInput, GUILayout.Width(160), GUILayout.Height(24));
+                GUI.backgroundColor = new Color(0.1f, 0.7f, 0.4f);
+                if (GUILayout.Button("[Apply Code]", GUILayout.Width(110), GUILayout.Height(24)))
+                {
+                    bool ok = TuningPresetCodeSystem.ApplyShareCode(_shareCodeInput, VehicleTunerHook.Profile);
+                    ShowToast("APPLY CODE", ok ? $"Loaded Tune: {_shareCodeInput}" : "Invalid share code!");
                 }
                 GUILayout.EndHorizontal();
                 GUILayout.Space(8);
