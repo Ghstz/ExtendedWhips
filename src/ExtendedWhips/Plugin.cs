@@ -20,6 +20,9 @@ namespace ExtendedWhips
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool VirtualProtect(IntPtr lpAddress, UIntPtr dwSize, uint flNewProtect, out uint lpflOldProtect);
 
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr VirtualAlloc(IntPtr lpAddress, UIntPtr dwSize, uint flAllocationType, uint flProtect);
+
         public static void LogMsg(string msg)
         {
             Instance?.Log.LogInfo(msg);
@@ -88,6 +91,13 @@ namespace ExtendedWhips
                 byte[] current = new byte[6];
                 Marshal.Copy(patchAddress, current, 0, 6);
 
+                // If already patched with our trampoline jump (starts with 0xE9), skip
+                if (current[0] == 0xE9)
+                {
+                    Log.LogInfo("[ExtendedWhips] GameAssembly.dll RVA 0x25B831 is already patched with trampoline.");
+                    return;
+                }
+
                 bool matches = true;
                 for (int i = 0; i < 6; i++)
                 {
@@ -100,15 +110,71 @@ namespace ExtendedWhips
 
                 if (!matches)
                 {
-                    // Check if already patched: 48 85 DB 74 4C 90
-                    if (current[0] == 0x48 && current[1] == 0x85 && current[2] == 0xDB)
-                    {
-                        Log.LogInfo("[ExtendedWhips] GameAssembly.dll RVA 0x25B831 is already patched.");
-                        return;
-                    }
                     Log.LogWarning($"[ExtendedWhips] GameAssembly bytes at 0x25B831 ({BitConverter.ToString(current)}) did not match expected pattern.");
                     return;
                 }
+
+                // Allocate 4KB executable page within +/- 2GB range for 32-bit relative jump
+                IntPtr trampoline = IntPtr.Zero;
+                for (long offset = 0x100000; offset < 0x70000000; offset += 0x10000)
+                {
+                    IntPtr candidate = (IntPtr)((long)patchAddress + offset);
+                    trampoline = VirtualAlloc(candidate, (UIntPtr)4096, 0x1000 | 0x2000, 0x40);
+                    if (trampoline != IntPtr.Zero) break;
+                }
+                if (trampoline == IntPtr.Zero)
+                {
+                    for (long offset = 0x100000; offset < 0x70000000; offset += 0x10000)
+                    {
+                        IntPtr candidate = (IntPtr)((long)patchAddress - offset);
+                        trampoline = VirtualAlloc(candidate, (UIntPtr)4096, 0x1000 | 0x2000, 0x40);
+                        if (trampoline != IntPtr.Zero) break;
+                    }
+                }
+
+                if (trampoline == IntPtr.Zero)
+                {
+                    Log.LogError("[ExtendedWhips] Failed to allocate trampoline memory near GameAssembly.dll.");
+                    return;
+                }
+
+                // Target RVAs in GameAssembly.dll:
+                // 0x25B882: Return epilogue (xor eax, eax; mov rbx, [rsp+60h]; ... ret)
+                // 0x25B848: Fast path (test byte ptr [rbx+44h], 10h; ... call rax)
+                // 0x25B837: Slow path (mov rdx, rbx; lea rcx, [rsp+28h]; ...)
+                IntPtr targetRet = IntPtr.Add(hModule, 0x25B882);
+                IntPtr targetFast = IntPtr.Add(hModule, 0x25B848);
+                IntPtr targetSlow = IntPtr.Add(hModule, 0x25B837);
+
+                // Build Trampoline (24 bytes):
+                // 0x00: test rbx, rbx          (48 85 DB)
+                // 0x03: jz targetRet           (0F 84 rel32)
+                // 0x09: cmp qword ptr [rbx], 0 (48 83 3B 00)
+                // 0x0D: jne targetFast         (0F 85 rel32)
+                // 0x13: jmp targetSlow         (E9 rel32)
+                int relRet = (int)((long)targetRet - ((long)trampoline + 9));
+                int relFast = (int)((long)targetFast - ((long)trampoline + 19));
+                int relSlow = (int)((long)targetSlow - ((long)trampoline + 24));
+
+                byte[] code = new byte[24];
+                code[0] = 0x48; code[1] = 0x85; code[2] = 0xDB;
+                code[3] = 0x0F; code[4] = 0x84;
+                BitConverter.GetBytes(relRet).CopyTo(code, 5);
+                code[9] = 0x48; code[10] = 0x83; code[11] = 0x3B; code[12] = 0x00;
+                code[13] = 0x0F; code[14] = 0x85;
+                BitConverter.GetBytes(relFast).CopyTo(code, 15);
+                code[19] = 0xE9;
+                BitConverter.GetBytes(relSlow).CopyTo(code, 20);
+
+                Marshal.Copy(code, 0, trampoline, 24);
+
+                // Build hook at 0x25B831 (6 bytes):
+                // jmp trampoline (E9 rel32) + nop (90)
+                int relTrampoline = (int)((long)trampoline - ((long)patchAddress + 5));
+                byte[] hook = new byte[6];
+                hook[0] = 0xE9;
+                BitConverter.GetBytes(relTrampoline).CopyTo(hook, 1);
+                hook[5] = 0x90;
 
                 // PAGE_EXECUTE_READWRITE = 0x40
                 if (!VirtualProtect(patchAddress, (UIntPtr)6, 0x40, out uint oldProtect))
@@ -117,13 +183,10 @@ namespace ExtendedWhips
                     return;
                 }
 
-                // Replacement: test rbx, rbx (48 85 DB); jz +0x4C (74 4C); nop (90)
-                // Safely branches to ret_label when rbx is NULL instead of crashing
-                byte[] patch = new byte[] { 0x48, 0x85, 0xDB, 0x74, 0x4C, 0x90 };
-                Marshal.Copy(patch, 0, patchAddress, 6);
-
+                Marshal.Copy(hook, 0, patchAddress, 6);
                 VirtualProtect(patchAddress, (UIntPtr)6, oldProtect, out _);
-                Log.LogInfo("[ExtendedWhips] Successfully hot-patched GameAssembly.dll RVA 0x25B831 (null dereference fix applied)!");
+
+                Log.LogInfo($"[ExtendedWhips] Successfully hot-patched GameAssembly.dll RVA 0x25B831 via trampoline at 0x{trampoline.ToInt64():X}!");
             }
             catch (Exception ex)
             {
