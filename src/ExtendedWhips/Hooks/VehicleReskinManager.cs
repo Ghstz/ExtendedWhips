@@ -140,15 +140,21 @@ namespace ExtendedWhips.Hooks
                     catch (System.Exception ex_) { Plugin.LogOnce(ex_); }
                 }
 
+                // Prefer a host material with a valid opaque lit shader (cloned by the loader so the swapped body
+                // inherits the game's HDRP shader/diffusion profile); otherwise fall back to the first material found.
                 Material? sampleMat = null;
+                Material? firstMat = null;
                 foreach (var r in existingState.HiddenOemRenderers)
                 {
-                    if (r != null && r.sharedMaterial != null)
+                    if (r == null || r.sharedMaterial == null) continue;
+                    firstMat ??= r.sharedMaterial;
+                    if (GlbVehicleLoader.IsUsableTemplate(r.sharedMaterial))
                     {
                         sampleMat = r.sharedMaterial;
                         break;
                     }
                 }
+                sampleMat ??= firstMat;
 
                 var asset = GlbVehicleLoader.LoadGlbModel(modelSpec, sampleMat);
                 if (asset == null || asset.RootObject == null)
@@ -289,10 +295,13 @@ namespace ExtendedWhips.Hooks
             float diveFront = -Mathf.Clamp(brake * 0.030f, 0f, 0.040f);
             float liftRear = +Mathf.Clamp(brake * 0.020f, 0f, 0.025f);
 
-            float totalFL_Y = deltaY_FL + liftFront + diveFront;
-            float totalFR_Y = deltaY_FR + liftFront + diveFront;
-            float totalRL_Y = deltaY_RL + squatRear + liftRear;
-            float totalRR_Y = deltaY_RR + squatRear + liftRear;
+            // Suspension deltas are in vehicle-space metres; wheel hubs are children of the ModelScale-scaled root,
+            // so convert to root-local units once (otherwise travel is multiplied by ModelScale a second time).
+            float invScale = 1f / Mathf.Max(0.0001f, spec.ModelScale);
+            float totalFL_Y = (deltaY_FL + liftFront + diveFront) * invScale;
+            float totalFR_Y = (deltaY_FR + liftFront + diveFront) * invScale;
+            float totalRL_Y = (deltaY_RL + squatRear + liftRear) * invScale;
+            float totalRR_Y = (deltaY_RR + squatRear + liftRear) * invScale;
 
             float steerFL = wheelFL != null ? wheelFL.steerAngle : 0f;
             float steerFR = wheelFR != null ? wheelFR.steerAngle : 0f;
@@ -332,7 +341,15 @@ namespace ExtendedWhips.Hooks
                 }
 
                 state.CurrentLeanAngle = Mathf.Lerp(state.CurrentLeanAngle, targetLean, Time.deltaTime * 6.5f);
-                asset.RootObject.transform.localRotation = Quaternion.Euler(0f, spec.RotationY, state.CurrentLeanAngle);
+
+                // Roll only the chassis; the root keeps its authored yaw and wheel hubs stay under the root.
+                // Models authored facing -Z (RotationY ~ 180) have their local Z axis reversed, so flip the roll sign.
+                float facing = Mathf.Cos(spec.RotationY * Mathf.Deg2Rad) >= 0f ? 1f : -1f;
+                if (asset.ChassisPivot != null)
+                {
+                    asset.ChassisPivot.transform.localRotation = Quaternion.Euler(0f, 0f, state.CurrentLeanAngle * facing);
+                }
+                asset.RootObject.transform.localRotation = Quaternion.Euler(0f, spec.RotationY, 0f);
             }
 
             // Smooth Air Ride Stance Height transition (Feature 9)
@@ -525,7 +542,14 @@ namespace ExtendedWhips.Hooks
                 if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", smoothness);
             }
             MudAccumulationSystem.MarkVisualsDirty();
-            ExtendedWhipsUI.ShowToast("PAINT SHOP", "Applied custom body finish to vehicle.");
+            if (state.LoadedAsset.BodyMaterials.Count == 0)
+            {
+                ExtendedWhipsUI.ShowToast("PAINT SHOP", "This model has no paintable body material.");
+            }
+            else
+            {
+                ExtendedWhipsUI.ShowToast("PAINT SHOP", "Applied custom body finish to vehicle.");
+            }
         }
 
         public static void ApplyWindowTint(VPVehicleController v, float alpha)

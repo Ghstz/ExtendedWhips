@@ -4,7 +4,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <AssemblyName>ExtendedWhips</AssemblyName>
     <RootNamespace>ExtendedWhips</RootNamespace>
-    <Version>2.1.3</Version>
+    <Version>2.1.4</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
@@ -14,7 +14,7 @@
 
   <!-- Local Core BepInEx Assemblies -->
   <ItemGroup Condition="Exists('$(GameDir)\BepInEx\core')">
-    <Reference Include="$(GameDir)\BepInEx\core\*.dll">
+    <Reference Include="$(GameDir)\BepInEx\core\*.dll" Exclude="$(GameDir)\BepInEx\core\dobby.dll">
       <Private>false</Private>
     </Reference>
   </ItemGroup>

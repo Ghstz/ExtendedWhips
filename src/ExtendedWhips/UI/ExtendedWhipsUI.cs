@@ -634,8 +634,16 @@ namespace ExtendedWhips.UI
 
             // 1. Ride Height
             float cm = p.RideHeightOffset * 100f;
-            p.RideHeightOffset = DrawSliderWithNudge("Ride Height Offset", p.RideHeightOffset, -0.20f, 0.35f, "F2", " m", 0.02f,
-                cm < -5f ? $"{cm:F0} cm (Slammed Track Stance)" : cm > 10f ? $"+{cm:F0} cm (Lifted Monster Hauler)" : $"{cm:F0} cm (Near OEM)");
+            string rideInfo = cm < -5f ? $"{cm:F0} cm (Slammed Track Stance)" : cm > 10f ? $"+{cm:F0} cm (Lifted Monster Hauler)" : $"{cm:F0} cm (Near OEM)";
+            if (p.RideHeightOffset < 0f && stock != null && stock.Wheels.Count > 0)
+            {
+                float effective = VehicleTunerHook.ResolveRideHeightOffset(VehicleReskinManager.GetActiveSkin(v), stock.Wheels[0].SuspensionDistance);
+                if (effective > p.RideHeightOffset + 0.0005f)
+                {
+                    rideInfo = $"{cm:F0} cm requested, limited to {effective * 100f:F1} cm (bump-stop safe)";
+                }
+            }
+            p.RideHeightOffset = DrawSliderWithNudge("Ride Height Offset", p.RideHeightOffset, -0.20f, 0.35f, "F2", " m", 0.02f, rideInfo);
 
             GUILayout.Space(8);
 
@@ -954,6 +962,15 @@ namespace ExtendedWhips.UI
 
                 // --- IN-GAME PAINT & CUSTOMIZATION STUDIO ---
                 GUILayout.Box("<b><color=#00E5FF>2. In-Game Paint & Customization Studio</color></b>", GUILayout.ExpandWidth(true));
+                int paintableCount = skinState?.LoadedAsset?.BodyMaterials.Count ?? 0;
+                if (paintableCount == 0)
+                {
+                    GUILayout.Label("<color=#FF8800><b>No paintable body material detected on this model.</b> Colors cannot be applied.</color>");
+                }
+                else
+                {
+                    GUILayout.Label($"<size=11><color=#AAAAAA>Paintable body materials: {paintableCount}</color></size>");
+                }
                 GUILayout.Label("<b>Iconic Factory OEM Colors:</b>");
                 
                 // Color Palette Row 1

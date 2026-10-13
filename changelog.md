@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.4] - 2026-10-12
+
+### Full GLB Mesh Hierarchy Reconstruction, Wheel Pivot Centering, Paint Studio Expansion & Physics Fixes
+Comprehensive vehicle reconstruction overhaul resolving floating wheels in the sky, missing/black assets, reversed vehicle & motorcycle meshes, suspension bottoming out, and paint studio compatibility across all custom vehicles.
+
+#### Fixed
+- **Wheel Pivot Math & Sky Floating Wheels:**
+  - Resolved double-scaling bug where GLTF world matrices already scaled by `ModelScale` (e.g. 100.4x on BMW M4 GT3) were scaled again when parenting and when applying suspension travel in `VehicleReskinManager.UpdateWheels`.
+  - Wheels are now zero-rotated `WheelHub_*` anchor objects placed at the true geometric center of the wheel bounds in vehicle local space, with node transforms parented below each hub.
+  - Eliminated skewed/lopsided wheels on the Ford Raptor, Cuda, and GMC Sierra HD by converting coordinate handedness (negating X and reversing triangle winding order) consistently without matrix shearing.
+  - Implemented word-aware token matching for wheel identification (`rim`, `wheel`, `tire`) preventing false positives on body trim, steering wheels, and brake lights.
+- **Nested GLTF Scene Graph Reconstruction:**
+  - Recursively reconstructs the full GLTF scene node hierarchy under `rootObj` so child meshes maintain relative offsets to parent assemblies.
+  - Fixes missing wheels and collapsed parts on complex multi-part models (1978 Chevrolet K5 Blazer, 2024 Ford F-150 Raptor R).
+  - Multi-wheel container groups (e.g., dual rear wheel axles) are automatically partitioned into dedicated individual hubs.
+- **Paint Studio & Material Detection Overhaul:**
+  - Clones valid host vehicle materials and scene HDRP/Lit materials (prioritizing Weltenbauer shaders) with proper properties, fallback texture clearing, and standard material IDs, eliminating pitch-black bodies on Cuda, GT-R, Blazer, and Raptor R.
+  - Broadened body paint keyword detection to recognize `coat`, `shell`, `panel`, `primary`, and `car` (excluding non-body materials like carpet, carbon, cargo).
+  - Added smart surface area fallback: vehicles with no explicitly matched paint keywords automatically assign their highest-surface-area mesh material to `BodyMaterials`.
+  - Updated Paint Studio UI to display detected paintable material count and prevent false positive toasts.
+- **Suspension Bottoming Out & Ride Height Clamping:**
+  - In `VehicleTunerHook`, clamped minimum ride-height lowering on low-slung car reskins (held to -1.5 cm) and limited utility trucks to max 25% of stock suspension travel.
+  - Dynamically stiffens spring rate (up to 2.5x) when suspension travel shortens, preventing `VPWheelCollider` springs from slamming into hard bump stops and causing violent ground shudder on the Plymouth Cuda.
+- **Motorcycle Spawn Orientations & Chassis Leaning:**
+  - Corrected `RotationY` to `180°` for Kawasaki Ninja H2 (`ninja_h2`) and BMW S1000RR (`bmw_s1000`).
+  - Decoupled chassis roll from wheels: dynamic lean roll is now applied solely to `ChassisPivot` while wheel hubs remain oriented to the road surface, preventing the entire bike from rolling over.
+  - Fixed roll sign direction on 180°-rotated models.
+- **Catalog Orientations & Alignments:**
+  - Corrected `raptor` (Ford F-150 Raptor) authoring orientation with `RotationY = 180°`.
+  - Preserved fine-tuned alignment on `sierra_hd` and `cuda71`.
+
+---
+
 ## [2.1.3] - 2026-10-12
 
 ### Visual Alignment, Wheel Classification & HDRP Material Fixes

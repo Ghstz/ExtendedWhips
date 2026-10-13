@@ -364,6 +364,29 @@ namespace ExtendedWhips.Hooks
             if (CurrentVehicle != null) ApplyTuningToInstance(CurrentVehicle);
         }
 
+        /// <summary>Minimum (most negative) ride-height offset allowed on low-profile car reskins (-1.5 cm).</summary>
+        public const float LowProfileMinRideOffset = -0.015f;
+
+        /// <summary>
+        /// Returns the ride-height offset that is actually applied. Positive (lifted) values pass through unchanged.
+        /// For a reskinned vehicle, lowering is limited: low-profile cars are clamped to
+        /// <see cref="LowProfileMinRideOffset"/>, and every other skin is limited to a quarter of the stock
+        /// suspension travel, so the heavy base chassis never travels past the wheel collider bump stops.
+        /// </summary>
+        public static float ResolveRideHeightOffset(ExtendedWhips.Models.GlbVehicleModel? skin, float stockSuspensionDistance)
+        {
+            float offset = Profile.RideHeightOffset;
+            if (offset >= 0f || skin == null) return offset;
+
+            float limit = -0.25f * Mathf.Max(0.05f, stockSuspensionDistance);
+            bool lowProfileCar = skin.Category == ExtendedWhips.Models.VehicleTypeCategory.MuscleCar
+                              || skin.Category == ExtendedWhips.Models.VehicleTypeCategory.SportsCar
+                              || skin.Category == ExtendedWhips.Models.VehicleTypeCategory.Supercar;
+            if (lowProfileCar) limit = Mathf.Max(limit, LowProfileMinRideOffset);
+
+            return Mathf.Max(offset, limit);
+        }
+
         public static void ApplyTuningToInstance(VPVehicleController v)
         {
             int vehicleId = v.GetInstanceID();
@@ -441,15 +464,30 @@ namespace ExtendedWhips.Hooks
             if (stock.VpWheels == null || stock.VpWheels.Length == 0 || stock.VpWheels[0] == null)
                 stock.VpWheels = v.GetComponentsInChildren<VPWheelCollider>();
             var vpWheels = stock.VpWheels;
+            var activeSkin = VehicleReskinManager.GetActiveSkin(v);
             if (vpWheels != null && vpWheels.Length > 0 && stock.Wheels.Count == vpWheels.Length)
             {
                 for (int i = 0; i < vpWheels.Length; i++)
                 {
                     var w = vpWheels[i];
                     var sw = stock.Wheels[i];
-                    w.suspensionDistance = Mathf.Max(0.05f, sw.SuspensionDistance + Profile.RideHeightOffset);
-                    w.suspensionAnchor = sw.SuspensionAnchor + (Profile.RideHeightOffset * 0.5f);
-                    w.springRate = sw.SpringRate * Profile.SpringStiffnessMultiplier;
+
+                    // Base ConSim chassis are heavy trucks: lowering them past the stock bump-stop margin
+                    // drives the collider into the ground (infinite normal force / violent bouncing).
+                    float rideOffset = ResolveRideHeightOffset(activeSkin, sw.SuspensionDistance);
+                    float newDistance = Mathf.Max(0.05f, sw.SuspensionDistance + rideOffset);
+
+                    // When travel is shortened keep the same spring force capacity over the remaining stroke
+                    // (bounded) so the suspension holds the chassis up instead of bottoming out.
+                    float travelCompensation = 1.0f;
+                    if (rideOffset < 0f && sw.SuspensionDistance > 0.0001f)
+                    {
+                        travelCompensation = Mathf.Clamp(sw.SuspensionDistance / newDistance, 1.0f, 2.5f);
+                    }
+
+                    w.suspensionDistance = newDistance;
+                    w.suspensionAnchor = sw.SuspensionAnchor + (rideOffset * 0.5f);
+                    w.springRate = sw.SpringRate * Profile.SpringStiffnessMultiplier * travelCompensation;
                     w.damperRate = sw.DamperRate * Profile.DamperMultiplier;
                     w.radius = sw.Radius * Profile.TireSizeMultiplier;
                     w.mass = sw.Mass * Profile.WheelMassMultiplier;

@@ -277,6 +277,6 @@ namespace ExtendedWhips
     {
         public const string PLUGIN_GUID = "com.extendedwhips.consim";
         public const string PLUGIN_NAME = "ExtendedWhips";
-        public const string PLUGIN_VERSION = "2.1.2";
+        public const string PLUGIN_VERSION = "2.1.4";
     }
 }

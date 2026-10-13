@@ -8,6 +8,7 @@ namespace ExtendedWhips.Models
     {
         public GlbVehicleModel Spec { get; set; }
         public GameObject RootObject { get; set; }
+        public GameObject? ChassisPivot { get; set; }
 
         // Wheels (Spinning Rims & Tires)
         public List<Transform> FrontLeftWheels { get; set; } = new();
