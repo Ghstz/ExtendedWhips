@@ -139,7 +139,7 @@ class Program
 
     static List<List<(Node node, Vector3 center, float radius, bool isCaliper)>> ClusterMeshes(List<(Node node, Vector3 center, float radius, bool isCaliper)> meshes)
     {
-        var clusters = new List<List<(Node, Vector3, float, bool)>>();
+        var clusters = new List<List<(Node node, Vector3 center, float radius, bool isCaliper)>>();
         foreach (var m in meshes)
         {
             bool added = false;
@@ -154,7 +154,7 @@ class Program
                     break;
                 }
             }
-            if (!added) clusters.Add(new List<(Node, Vector3, float, bool)> { m });
+            if (!added) clusters.Add(new List<(Node node, Vector3 center, float radius, bool isCaliper)> { m });
         }
         return clusters;
     }
